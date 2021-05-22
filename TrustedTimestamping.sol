@@ -12,7 +12,7 @@ contract TrustedTimestamping {
     uint public cost = 1000 * 10**18;
     address public creator;
     mapping(address => bytes32[]) addressHashes;
-    mapping(bytes32 => address) fileHashesToAddress;
+    mapping(bytes32 => address[]) fileHashesToAddress;
 
     event StoreHash(address from, bytes32 dataHash);
 
@@ -36,7 +36,7 @@ contract TrustedTimestamping {
         address from = msg.sender;
         _token.spendOnProduct(cost);
         addressHashes[msg.sender].push(dataHash);
-        fileHashesToAddress[dataHash] = msg.sender;
+        fileHashesToAddress[dataHash].push(msg.sender);
         emit StoreHash(from, dataHash);
     }
 }
