@@ -3,9 +3,6 @@ import minimist from 'minimist'
 import path from 'path'
 import compile from '../compile'
 
-// import solc from 'solc'
-const solc = require('solc')
-
 const argv = minimist(process.argv.slice(2))
 
 ;(async function compileSmartContract() {

@@ -4,17 +4,22 @@
   "description": "Moontography smart contracts and associated code",
   "main": "node dist/compile",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prettier": "prettier --write 'contracts/**/*.sol'"
   },
   "author": "Lance Whatley",
   "license": "MIT",
   "devDependencies": {
     "@types/minimist": "^1.2.1",
     "@types/node": "^14.14.8",
+    "prettier": "^2.3.0",
+    "prettier-plugin-solidity": "*",
     "typescript": "^4.0.5"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^4.1.0",
+    "@openzeppelin/upgrades": "^2.8.0",
     "minimist": "^1.2.5",
-    "solc": "^0.6.12"
+    "solc": "^0.8.4"
   }
 }
