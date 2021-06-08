@@ -23,6 +23,10 @@ contract MTGYFaaS {
   // contracts paying out stakers for the given token.
   mapping(address => address[]) public tokensUpForStaking;
 
+  // mapping of userAddress => contractAddress[] that provides all the
+  // user's sMTGY contracts they're staking tokens with
+  mapping(address => address[]) public userStakingContracts;
+
   /**
    * @notice The constructor for the staking master contract.
    */
@@ -82,5 +86,47 @@ contract MTGYFaaS {
 
     // TODO Loop through all stakers and harvest their tokens
     // using _contract.harvestTokensForUser(_userAddy)
+  }
+
+  function doesUserHaveContract(address _userAddress, address _stakingContract)
+    public
+    view
+    returns (bool)
+  {
+    for (uint256 _i = 0; _i < userStakingContracts[_userAddress].length; _i++) {
+      if (userStakingContracts[_userAddress][_i] == _stakingContract) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function addUserToContract(address _userAddress, address _stakingContract)
+    public
+  {
+    require(
+      msg.sender == _stakingContract,
+      'addUserToContract calling address must be staking contract'
+    );
+    MTGYFaaSToken _contract = MTGYFaaSToken(_stakingContract);
+    require(_contract.balanceOf(_userAddress) > 0);
+    userStakingContracts[_userAddress].push(_stakingContract);
+  }
+
+  function removeContractFromUser(
+    address _userAddress,
+    address _stakingContract
+  ) public {
+    require(
+      msg.sender == _stakingContract,
+      'removeContractFromUser calling address must be staking contract'
+    );
+    MTGYFaaSToken _contract = MTGYFaaSToken(_stakingContract);
+    require(_contract.balanceOf(_userAddress) == 0);
+    for (uint256 _i = 0; _i < userStakingContracts[_userAddress].length; _i++) {
+      if (userStakingContracts[_userAddress][_i] == _stakingContract) {
+        delete userStakingContracts[_userAddress][_i];
+      }
+    }
   }
 }

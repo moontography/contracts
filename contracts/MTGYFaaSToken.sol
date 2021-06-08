@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import '../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
+import './MTGYFaaS.sol';
 
 /**
  * @title MTGYFaaSToken (sMTGY)
@@ -22,6 +23,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
   uint256 public perBlockTokenAmount;
   uint256 public lockedUntilDate;
 
+  MTGYFaaS private parentFaasToken;
   ERC20 private token;
   address private constant burner = 0x000000000000000000000000000000000000dEaD;
 
@@ -70,6 +72,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
 
     contractCreationBlock = block.number;
     creator = msg.sender;
+    parentFaasToken = MTGYFaaS(creator);
     originalTotalSupply = _supply;
     originalTokenOwnerAddress = _originalTokenOwner;
     tokenAddress = _tokenAddy;
@@ -81,7 +84,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
   function updatePerBlockAmount(uint256 _amount) public {
     require(
       msg.sender == originalTokenOwnerAddress,
-      'updatePerBlockAmount user must be contract creator'
+      'updatePerBlockAmount user must be original token owner'
     );
     perBlockTokenAmount = _amount;
   }
@@ -89,7 +92,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
   function updateLockedTimestamp(uint256 _newTime) public {
     require(
       msg.sender == originalTokenOwnerAddress,
-      'updateLockedTimestamp user must be contract creator'
+      'updateLockedTimestamp user must be original token owner'
     );
     require(
       _newTime > lockedUntilDate || _newTime == 0,
@@ -112,6 +115,9 @@ contract MTGYFaaSToken is ERC20, Ownable {
       blockLastHarvested: block.number
     });
 
+    if (!parentFaasToken.doesUserHaveContract(msg.sender, address(this))) {
+      parentFaasToken.addUserToContract(msg.sender, address(this));
+    }
     _updateTotalTokenAmount(_amount, 'add');
   }
 
@@ -125,6 +131,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
     transferFrom(msg.sender, burner, _amount);
     token.transfer(msg.sender, _amount);
     if (balanceOf(msg.sender) <= 0) {
+      parentFaasToken.removeContractFromUser(msg.sender, address(this));
       delete tokenStakers[msg.sender];
     }
 
