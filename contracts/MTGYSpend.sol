@@ -25,18 +25,27 @@ contract MTGYSpend {
   }
 
   function changeMtgyTokenAddy(address tokenAddy) public {
-    require(msg.sender == creator);
+    require(
+      msg.sender == creator,
+      'changeMtgyTokenAddy user must be contract creator'
+    );
     mtgyTokenAddy = tokenAddy;
     _token = MTGY(tokenAddy);
   }
 
   function changeDevWallet(address newDevWallet) public {
-    require(msg.sender == creator);
+    require(
+      msg.sender == creator,
+      'changeDevWallet user must be contract creator'
+    );
     devWallet = newDevWallet;
   }
 
   function changeRewardsWallet(address newRewardsWallet) public {
-    require(msg.sender == creator);
+    require(
+      msg.sender == creator,
+      'changeRewardsWallet user must be contract creator'
+    );
     rewardsWallet = newRewardsWallet;
   }
 

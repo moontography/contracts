@@ -45,7 +45,7 @@ contract MTGYTrustedTimestamping {
    * @dev If the price of MTGY changes significantly, need to be able to adjust price to keep cost appropriate for storing hashes
    */
   function changeCost(uint256 newCost) public {
-    require(msg.sender == creator);
+    require(msg.sender == creator, 'user must be contract creator');
     _token.approve(spendAddress, cost);
     cost = newCost;
   }
