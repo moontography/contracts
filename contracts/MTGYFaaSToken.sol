@@ -115,6 +115,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
       blockLastHarvested: block.number
     });
 
+    parentFaasToken.addUserAsStaking(msg.sender);
     if (!parentFaasToken.doesUserHaveContract(msg.sender, address(this))) {
       parentFaasToken.addUserToContract(msg.sender, address(this));
     }
@@ -131,6 +132,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
     transferFrom(msg.sender, burner, _amount);
     token.transfer(msg.sender, _amount);
     if (balanceOf(msg.sender) <= 0) {
+      parentFaasToken.removeUserAsStaking(msg.sender);
       parentFaasToken.removeContractFromUser(msg.sender, address(this));
       delete tokenStakers[msg.sender];
     }

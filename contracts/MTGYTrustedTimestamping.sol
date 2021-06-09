@@ -77,12 +77,13 @@ contract MTGYTrustedTimestamping {
     emit StoreHash(from, dataHash);
   }
 
-  function getHashesFromAddress(address addy)
+  function getHashesFromAddress(address _userAddy)
     public
     view
     returns (DataHash[] memory)
   {
-    return addressHashes[addy];
+    require(msg.sender == _userAddy, 'can only get hashes for your address');
+    return addressHashes[_userAddy];
   }
 
   function getAddressesFromHash(bytes32 dataHash)
