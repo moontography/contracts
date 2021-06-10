@@ -24,30 +24,36 @@ contract MTGYTrustedTimestamping {
     uint256 time;
   }
 
-  uint256 public cost = 1000 * 10**18;
+  uint256 public mtgyServiceCost = 100 * 10**18;
   address public creator;
   address public spendAddress;
-  mapping(address => DataHash[]) addressHashes;
-  mapping(bytes32 => Address[]) fileHashesToAddress;
+  mapping(address => DataHash[]) public addressHashes;
+  mapping(bytes32 => Address[]) public fileHashesToAddress;
 
   event StoreHash(address from, bytes32 dataHash);
 
-  constructor(address mtgyAddress, address mtgySpendAddress) {
+  constructor(address _mtgyAddress, address _mtgySpendAddress) {
     creator = msg.sender;
-    spendAddress = mtgySpendAddress;
-    _token = MTGY(mtgyAddress);
+    spendAddress = _mtgySpendAddress;
+    _token = MTGY(_mtgyAddress);
     _spend = MTGYSpend(spendAddress);
+  }
 
-    _token.approve(spendAddress, cost);
+  function changeSpendAddress(address _spendAddress) public {
+    require(
+      msg.sender == creator,
+      'must be contract creator to update spend address'
+    );
+    spendAddress = _spendAddress;
+    _spend = MTGYSpend(spendAddress);
   }
 
   /**
    * @dev If the price of MTGY changes significantly, need to be able to adjust price to keep cost appropriate for storing hashes
    */
-  function changeCost(uint256 newCost) public {
+  function changeMtgyServiceCost(uint256 _newCost) public {
     require(msg.sender == creator, 'user must be contract creator');
-    _token.approve(spendAddress, cost);
-    cost = newCost;
+    mtgyServiceCost = _newCost;
   }
 
   /**
@@ -58,12 +64,11 @@ contract MTGYTrustedTimestamping {
     string memory fileName,
     uint256 fileSizeBytes
   ) public {
-    address from = msg.sender;
-
-    _token.transferFrom(from, address(this), cost);
-    _spend.spendOnProduct(cost);
+    _token.transferFrom(msg.sender, address(this), mtgyServiceCost);
+    _token.approve(spendAddress, mtgyServiceCost);
+    _spend.spendOnProduct(mtgyServiceCost);
     uint256 theTimeNow = block.timestamp;
-    addressHashes[from].push(
+    addressHashes[msg.sender].push(
       DataHash({
         dataHash: dataHash,
         time: theTimeNow,
@@ -72,9 +77,9 @@ contract MTGYTrustedTimestamping {
       })
     );
     fileHashesToAddress[dataHash].push(
-      Address({ addy: from, time: theTimeNow })
+      Address({ addy: msg.sender, time: theTimeNow })
     );
-    emit StoreHash(from, dataHash);
+    emit StoreHash(msg.sender, dataHash);
   }
 
   function getHashesFromAddress(address _userAddy)
@@ -82,7 +87,6 @@ contract MTGYTrustedTimestamping {
     view
     returns (DataHash[] memory)
   {
-    require(msg.sender == _userAddy, 'can only get hashes for your address');
     return addressHashes[_userAddy];
   }
 

@@ -12,9 +12,10 @@ import './MTGYSpend.sol';
  * to be staked and staking.
  */
 contract MTGYFaaS {
+  MTGY private _mtgyToken;
+  MTGYSpend private _mtgySpendContract;
+
   address public creator;
-  MTGY public mtgyToken;
-  MTGYSpend public mtgySpendContract;
   uint256 public mtgyServiceCost = 100000 * 10**18;
 
   // this is a mapping of tokenAddress => contractAddress[] that represents
@@ -22,6 +23,7 @@ contract MTGYFaaS {
   // to be staked and a list of contract addresses for the staking token
   // contracts paying out stakers for the given token.
   mapping(address => address[]) public tokensUpForStaking;
+  address[] public allFarmingContracts;
   uint256 public totalStakingContracts;
 
   // mapping of userAddress => contractAddress[] that provides all the
@@ -34,9 +36,12 @@ contract MTGYFaaS {
    */
   constructor(address _mtgyAddress, address _mtgySpendAddress) {
     creator = msg.sender;
-    mtgyToken = MTGY(_mtgyAddress);
-    mtgySpendContract = MTGYSpend(_mtgySpendAddress);
-    mtgyToken.approve(_mtgySpendAddress, mtgyServiceCost);
+    _mtgyToken = MTGY(_mtgyAddress);
+    _mtgySpendContract = MTGYSpend(_mtgySpendAddress);
+  }
+
+  function getAllFarmingContracts() public view returns (address[] memory) {
+    return allFarmingContracts;
   }
 
   function getTokensForStaking(address _tokenAddress)
@@ -58,7 +63,6 @@ contract MTGYFaaS {
   function changeServiceCost(uint256 newCost) public {
     require(msg.sender == creator, 'user needs to be the contract creator');
     mtgyServiceCost = newCost;
-    mtgyToken.approve(address(mtgySpendContract), mtgyServiceCost);
   }
 
   function createNewTokenContract(
@@ -68,8 +72,9 @@ contract MTGYFaaS {
     uint256 _lockedUntilDate
   ) public {
     // pay the MTGY fee for using MTGYFaaS
-    mtgyToken.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    mtgySpendContract.spendOnProduct(mtgyServiceCost);
+    _mtgyToken.transferFrom(msg.sender, address(this), mtgyServiceCost);
+    _mtgyToken.approve(address(_mtgySpendContract), mtgyServiceCost);
+    _mtgySpendContract.spendOnProduct(mtgyServiceCost);
 
     // create new MTGYFaaSToken contract which will serve as the core place for
     // users to stake their tokens and earn rewards
@@ -84,6 +89,7 @@ contract MTGYFaaS {
         _perBlockAllocation,
         _lockedUntilDate
       );
+    allFarmingContracts.push(address(_contract));
     tokensUpForStaking[_tokenAddy].push(address(_contract));
     totalStakingContracts++;
 
@@ -92,6 +98,7 @@ contract MTGYFaaS {
     _sourceToken.transfer(address(_contract), _supply);
   }
 
+  // TODO build remove logic
   // function removeTokenContract(address _faasTokenAddy) public {
   //   MTGYFaaSToken _contract = MTGYFaaSToken(_faasTokenAddy);
   //   require(

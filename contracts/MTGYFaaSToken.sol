@@ -130,7 +130,10 @@ contract MTGYFaaSToken is ERC20, Ownable {
 
     harvestTokens();
     transferFrom(msg.sender, burner, _amount);
-    token.transfer(msg.sender, _amount);
+    require(
+      token.transfer(msg.sender, _amount),
+      'unable to send user original tokens'
+    );
     if (balanceOf(msg.sender) <= 0) {
       parentFaasToken.removeUserAsStaking(msg.sender);
       parentFaasToken.removeContractFromUser(msg.sender, address(this));
@@ -161,40 +164,45 @@ contract MTGYFaaSToken is ERC20, Ownable {
     view
     returns (uint256)
   {
-    TokenHarvester memory staker = tokenStakers[_userAddy];
-    uint256 startBlockIndex = 0;
-    for (uint256 _i; _i < blockTotals.length; _i++) {
-      BlockTokenTotal memory curBlock = blockTotals[_i];
-      if (curBlock.blockNumber > staker.blockLastHarvested) {
-        startBlockIndex = _i - 1;
-        break;
-      }
+    TokenHarvester memory _staker = tokenStakers[_userAddy];
+    uint256 _startBlockIndex = 0;
+
+    if (_staker.blockLastHarvested == block.number) {
+      return uint256(0);
     }
 
-    uint256 latestBlock = block.number;
-    uint256 lastPossibleBlock = getLastStakableBlock();
-    if (lastPossibleBlock < latestBlock) {
-      latestBlock = lastPossibleBlock;
+    uint256 _lastBlockToCheck = block.number;
+    uint256 _lastPossibleBlock = getLastStakableBlock();
+    if (_lastPossibleBlock < _lastBlockToCheck) {
+      _lastBlockToCheck = _lastPossibleBlock;
     }
 
-    uint256 tokensToHarvest = 0;
-    BlockTokenTotal memory startTotal = blockTotals[startBlockIndex];
+    uint256 _tokensToHarvest = 0;
+    BlockTokenTotal memory _startTotal = blockTotals[_startBlockIndex];
     for (
-      uint256 _block = staker.blockLastHarvested;
-      _block <= latestBlock;
+      uint256 _block = _staker.blockLastHarvested;
+      _block < _lastBlockToCheck;
       _block++
     ) {
-      BlockTokenTotal memory nextTotal = blockTotals[startBlockIndex + 1];
-      if (_block >= nextTotal.blockNumber) {
-        startBlockIndex++;
-        startTotal = blockTotals[startBlockIndex];
+      BlockTokenTotal memory _nextTotal = blockTotals[_startBlockIndex];
+      if (_startBlockIndex + 1 < blockTotals.length) {
+        _nextTotal = blockTotals[_startBlockIndex + 1];
       }
 
-      tokensToHarvest +=
-        perBlockTokenAmount *
-        (balanceOf(_userAddy) / startTotal.totalTokens);
+      if (_block >= _nextTotal.blockNumber) {
+        if (_startBlockIndex + 1 < blockTotals.length) {
+          _startTotal = blockTotals[_startBlockIndex + 1];
+          _startBlockIndex++;
+        }
+      }
+
+      if (_startTotal.totalTokens > 0) {
+        _tokensToHarvest +=
+          perBlockTokenAmount *
+          (balanceOf(_userAddy) / _startTotal.totalTokens);
+      }
     }
-    return tokensToHarvest;
+    return _tokensToHarvest;
   }
 
   function _harvestTokens(address _userAddy) private returns (uint256) {
@@ -207,10 +215,13 @@ contract MTGYFaaSToken is ERC20, Ownable {
     uint256 blockDiff = block.number - harvestAmount.blockLastHarvested;
     require(blockDiff >= 0, 'must be after when the user last harvested');
 
-    uint256 tokensToTransfer = calculateHarvestTokenTotalForUser(_userAddy);
-    token.transfer(address(this), tokensToTransfer);
+    uint256 _tokensToTransfer = calculateHarvestTokenTotalForUser(_userAddy);
+    require(
+      token.transfer(_userAddy, _tokensToTransfer),
+      'unable to send user their harvested tokens'
+    );
     tokenStakers[_userAddy].blockLastHarvested = block.number;
-    return tokensToTransfer;
+    return _tokensToTransfer;
   }
 
   function _updateTotalTokenAmount(uint256 _amount, string memory _operation)
