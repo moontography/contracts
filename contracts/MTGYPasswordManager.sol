@@ -20,11 +20,12 @@ contract MTGYPasswordManager {
   struct AccountInfo {
     string id;
     uint256 timestamp;
-    string accountData;
+    string iv;
+    string ciphertext;
     bool isDeleted;
   }
 
-  mapping(address => AccountInfo[]) public accountData;
+  mapping(address => AccountInfo[]) public accountCiphertext;
 
   constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
     creator = msg.sender;
@@ -58,7 +59,7 @@ contract MTGYPasswordManager {
   }
 
   function getAllAccounts() public view returns (AccountInfo[] memory) {
-    return accountData[msg.sender];
+    return accountCiphertext[msg.sender];
   }
 
   function getAccountById(string memory _id)
@@ -66,48 +67,64 @@ contract MTGYPasswordManager {
     view
     returns (AccountInfo memory)
   {
-    AccountInfo[] memory _userInfo = accountData[msg.sender];
+    AccountInfo[] memory _userInfo = accountCiphertext[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
       if (_compareStrings(_userInfo[_i].id, _id)) {
         return _userInfo[_i];
       }
     }
     return
-      AccountInfo({ id: '', timestamp: 0, accountData: '', isDeleted: false });
+      AccountInfo({
+        id: '',
+        timestamp: 0,
+        iv: '',
+        ciphertext: '',
+        isDeleted: false
+      });
   }
 
   function updateAccountById(string memory _id, string memory _newAccountData)
     public
+    returns (bool)
   {
-    AccountInfo[] memory _userInfo = accountData[msg.sender];
+    AccountInfo[] memory _userInfo = accountCiphertext[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
       if (_compareStrings(_userInfo[_i].id, _id)) {
-        accountData[msg.sender][_i].accountData = _newAccountData;
+        accountCiphertext[msg.sender][_i].ciphertext = _newAccountData;
+        return true;
       }
     }
+    return false;
   }
 
-  function addAccount(string memory _id, string memory _accountData) public {
+  function addAccount(
+    string memory _id,
+    string memory _iv,
+    string memory _ciphertext
+  ) public {
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
     _mtgySpend.spendOnProduct(mtgyServiceCost);
-    accountData[msg.sender].push(
+    accountCiphertext[msg.sender].push(
       AccountInfo({
         id: _id,
         timestamp: block.timestamp,
-        accountData: _accountData,
+        iv: _iv,
+        ciphertext: _ciphertext,
         isDeleted: false
       })
     );
   }
 
-  function deleteAccount(string memory _id) public {
-    AccountInfo[] memory _userInfo = accountData[msg.sender];
+  function deleteAccount(string memory _id) public returns (bool) {
+    AccountInfo[] memory _userInfo = accountCiphertext[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
       if (_compareStrings(_userInfo[_i].id, _id)) {
-        accountData[msg.sender][_i].isDeleted = true;
+        accountCiphertext[msg.sender][_i].isDeleted = true;
+        return true;
       }
     }
+    return false;
   }
 
   function _compareStrings(string memory a, string memory b)
