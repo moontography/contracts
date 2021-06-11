@@ -128,7 +128,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
       'user can only unstake amount they have currently staked or less'
     );
 
-    harvestTokens();
+    harvestTokensForUser(msg.sender);
     transferFrom(msg.sender, burner, _amount);
     require(
       token.transfer(msg.sender, _amount),
@@ -149,7 +149,7 @@ contract MTGYFaaSToken is ERC20, Ownable {
 
   function harvestTokensForUser(address _userAddy) public returns (uint256) {
     require(
-      msg.sender == creator,
+      msg.sender == creator || msg.sender == address(this),
       'can only harvest tokens for someone else if this was the contract creator'
     );
     return _harvestTokens(_userAddy);
