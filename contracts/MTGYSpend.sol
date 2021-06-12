@@ -10,12 +10,19 @@ import './MTGY.sol';
 contract MTGYSpend {
   MTGY private _token;
 
+  struct SpentInfo {
+    uint256 timestamp;
+    uint256 tokens;
+  }
+
   address public creator;
   address public constant burnWallet =
     0x000000000000000000000000000000000000dEaD;
   address public devWallet = 0x3A3ffF4dcFCB7a36dADc40521e575380485FA5B8;
   address public rewardsWallet = 0x87644cB97C1e2Cc676f278C88D0c4d56aC17e838;
   address public mtgyTokenAddy;
+
+  SpentInfo[] public spentTimestamps;
   uint256 public totalSpent = 0;
 
   event Spend(address indexed owner, uint256 value);
@@ -51,6 +58,10 @@ contract MTGYSpend {
     rewardsWallet = _newRewardsWallet;
   }
 
+  function getSpentByTimestamp() public view returns (SpentInfo[] memory) {
+    return spentTimestamps;
+  }
+
   /**
    * spendOnProduct: used by a moontography product for a user to spend their tokens on usage of a product
    *   25% goes to dev wallet
@@ -59,6 +70,9 @@ contract MTGYSpend {
    */
   function spendOnProduct(uint256 _productCostTokens) public returns (bool) {
     totalSpent += _productCostTokens;
+    spentTimestamps.push(
+      SpentInfo({ timestamp: block.timestamp, tokens: _productCostTokens })
+    );
     uint256 _half = _productCostTokens / uint256(2);
     uint256 _quarter = _half / uint256(2);
 

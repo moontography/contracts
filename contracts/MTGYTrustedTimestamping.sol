@@ -27,6 +27,7 @@ contract MTGYTrustedTimestamping {
   uint256 public mtgyServiceCost = 100 * 10**18;
   address public creator;
   address public spendAddress;
+  uint256 public totalNumberHashesStored;
   mapping(address => DataHash[]) public addressHashes;
   mapping(bytes32 => Address[]) public fileHashesToAddress;
 
@@ -79,10 +80,11 @@ contract MTGYTrustedTimestamping {
     fileHashesToAddress[dataHash].push(
       Address({ addy: msg.sender, time: theTimeNow })
     );
+    totalNumberHashesStored++;
     emit StoreHash(msg.sender, dataHash);
   }
 
-  function getHashesFromAddress(address _userAddy)
+  function getHashesForAddress(address _userAddy)
     public
     view
     returns (DataHash[] memory)
@@ -90,7 +92,7 @@ contract MTGYTrustedTimestamping {
     return addressHashes[_userAddy];
   }
 
-  function getAddressesFromHash(bytes32 dataHash)
+  function getAddressesForHash(bytes32 dataHash)
     public
     view
     returns (Address[] memory)
