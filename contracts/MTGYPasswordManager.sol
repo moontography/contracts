@@ -25,7 +25,8 @@ contract MTGYPasswordManager {
     bool isDeleted;
   }
 
-  mapping(address => AccountInfo[]) public accountCiphertext;
+  // the normal mapping of all accounts owned by a user
+  mapping(address => AccountInfo[]) public userAccounts;
 
   constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
     creator = msg.sender;
@@ -59,7 +60,7 @@ contract MTGYPasswordManager {
   }
 
   function getAllAccounts() public view returns (AccountInfo[] memory) {
-    return accountCiphertext[msg.sender];
+    return userAccounts[msg.sender];
   }
 
   function getAccountById(string memory _id)
@@ -67,9 +68,9 @@ contract MTGYPasswordManager {
     view
     returns (AccountInfo memory)
   {
-    AccountInfo[] memory _userInfo = accountCiphertext[msg.sender];
+    AccountInfo[] memory _userInfo = userAccounts[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
-      if (_compareStrings(_userInfo[_i].id, _id)) {
+      if (_compareStr(_userInfo[_i].id, _id)) {
         return _userInfo[_i];
       }
     }
@@ -87,10 +88,10 @@ contract MTGYPasswordManager {
     public
     returns (bool)
   {
-    AccountInfo[] memory _userInfo = accountCiphertext[msg.sender];
+    AccountInfo[] memory _userInfo = userAccounts[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
-      if (_compareStrings(_userInfo[_i].id, _id)) {
-        accountCiphertext[msg.sender][_i].ciphertext = _newAccountData;
+      if (_compareStr(_userInfo[_i].id, _id)) {
+        userAccounts[msg.sender][_i].ciphertext = _newAccountData;
         return true;
       }
     }
@@ -105,7 +106,7 @@ contract MTGYPasswordManager {
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
     _mtgySpend.spendOnProduct(mtgyServiceCost);
-    accountCiphertext[msg.sender].push(
+    userAccounts[msg.sender].push(
       AccountInfo({
         id: _id,
         timestamp: block.timestamp,
@@ -117,17 +118,17 @@ contract MTGYPasswordManager {
   }
 
   function deleteAccount(string memory _id) public returns (bool) {
-    AccountInfo[] memory _userInfo = accountCiphertext[msg.sender];
+    AccountInfo[] memory _userInfo = userAccounts[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
-      if (_compareStrings(_userInfo[_i].id, _id)) {
-        accountCiphertext[msg.sender][_i].isDeleted = true;
+      if (_compareStr(_userInfo[_i].id, _id)) {
+        userAccounts[msg.sender][_i].isDeleted = true;
         return true;
       }
     }
     return false;
   }
 
-  function _compareStrings(string memory a, string memory b)
+  function _compareStr(string memory a, string memory b)
     private
     pure
     returns (bool)

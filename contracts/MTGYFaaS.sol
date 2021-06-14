@@ -12,8 +12,8 @@ import './MTGYSpend.sol';
  * to be staked and staking.
  */
 contract MTGYFaaS {
-  MTGY private _mtgyToken;
-  MTGYSpend private _mtgySpendContract;
+  MTGY private _mtgy;
+  MTGYSpend private _spend;
 
   address public creator;
   uint256 public mtgyServiceCost = 100000 * 10**18;
@@ -28,7 +28,7 @@ contract MTGYFaaS {
 
   // mapping of userAddress => contractAddress[] that provides all the
   // user's sMTGY contracts they're staking tokens with
-  mapping(address => address[]) public userStakingContracts;
+  mapping(address => address[]) public userStakes;
   address[] public allUsersStaking;
 
   /**
@@ -36,8 +36,8 @@ contract MTGYFaaS {
    */
   constructor(address _mtgyAddress, address _mtgySpendAddress) {
     creator = msg.sender;
-    _mtgyToken = MTGY(_mtgyAddress);
-    _mtgySpendContract = MTGYSpend(_mtgySpendAddress);
+    _mtgy = MTGY(_mtgyAddress);
+    _spend = MTGYSpend(_mtgySpendAddress);
   }
 
   function getAllFarmingContracts() public view returns (address[] memory) {
@@ -57,7 +57,7 @@ contract MTGYFaaS {
     view
     returns (address[] memory)
   {
-    return userStakingContracts[_userAddress];
+    return userStakes[_userAddress];
   }
 
   function changeServiceCost(uint256 newCost) public {
@@ -72,9 +72,9 @@ contract MTGYFaaS {
     uint256 _lockedUntilDate
   ) public {
     // pay the MTGY fee for using MTGYFaaS
-    _mtgyToken.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgyToken.approve(address(_mtgySpendContract), mtgyServiceCost);
-    _mtgySpendContract.spendOnProduct(mtgyServiceCost);
+    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
+    _mtgy.approve(address(_spend), mtgyServiceCost);
+    _spend.spendOnProduct(mtgyServiceCost);
 
     // create new MTGYFaaSToken contract which will serve as the core place for
     // users to stake their tokens and earn rewards
@@ -98,23 +98,24 @@ contract MTGYFaaS {
     _sourceToken.transfer(address(_contract), _supply);
   }
 
-  // TODO build remove logic
-  // function removeTokenContract(address _faasTokenAddy) public {
-  //   MTGYFaaSToken _contract = MTGYFaaSToken(_faasTokenAddy);
-  //   require(
-  //     msg.sender == _contract.originalTokenOwnerAddress(),
-  //     'user must be the original token owner to remove tokens'
-  //   );
-  //   require(
-  //     block.timestamp > _contract.lockedUntilDate(),
-  //     'it must be after the locked time the user originally configured'
-  //   );
+  function removeTokenContract(address _faasTokenAddy) public {
+    MTGYFaaSToken _contract = MTGYFaaSToken(_faasTokenAddy);
+    require(
+      msg.sender == _contract.tokenOwner(),
+      'user must be the original token owner to remove tokens'
+    );
+    require(
+      block.timestamp > _contract.lockedUntilDate(),
+      'it must be after the locked time the user originally configured'
+    );
 
-  //   // TODO Loop through all stakers and harvest their tokens
-  //   // using _contract.harvestTokensForUser(_userAddy)
+    for (uint256 _i = 0; _i < allUsersStaking.length; _i++) {
+      _contract.harvestForUser(allUsersStaking[_i]);
+    }
+    _contract.removeStakeableTokens();
 
-  //   totalStakingContracts--;
-  // }
+    totalStakingContracts--;
+  }
 
   function userIsStakingIndex(address _addy) public view returns (int256) {
     for (uint256 _i = 0; _i < allUsersStaking.length; _i++) {
@@ -145,8 +146,8 @@ contract MTGYFaaS {
     view
     returns (bool)
   {
-    for (uint256 _i = 0; _i < userStakingContracts[_userAddress].length; _i++) {
-      if (userStakingContracts[_userAddress][_i] == _stakingContract) {
+    for (uint256 _i = 0; _i < userStakes[_userAddress].length; _i++) {
+      if (userStakes[_userAddress][_i] == _stakingContract) {
         return true;
       }
     }
@@ -162,7 +163,7 @@ contract MTGYFaaS {
     );
     MTGYFaaSToken _contract = MTGYFaaSToken(_stakingContract);
     require(_contract.balanceOf(_userAddress) > 0);
-    userStakingContracts[_userAddress].push(_stakingContract);
+    userStakes[_userAddress].push(_stakingContract);
   }
 
   function removeContractFromUser(
@@ -175,9 +176,9 @@ contract MTGYFaaS {
     );
     MTGYFaaSToken _contract = MTGYFaaSToken(_stakingContract);
     require(_contract.balanceOf(_userAddress) == 0);
-    for (uint256 _i = 0; _i < userStakingContracts[_userAddress].length; _i++) {
-      if (userStakingContracts[_userAddress][_i] == _stakingContract) {
-        delete userStakingContracts[_userAddress][_i];
+    for (uint256 _i = 0; _i < userStakes[_userAddress].length; _i++) {
+      if (userStakes[_userAddress][_i] == _stakingContract) {
+        delete userStakes[_userAddress][_i];
       }
     }
   }
