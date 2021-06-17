@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
-import './MTGY.sol';
+import '../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 /**
  * @title MTGYSpend
  * @dev Logic for spending $MTGY on products in the moontography ecosystem.
  */
 contract MTGYSpend {
-  MTGY private _token;
+  ERC20 private _mtgy;
 
   struct SpentInfo {
     uint256 timestamp;
@@ -30,16 +30,16 @@ contract MTGYSpend {
   constructor(address _mtgyTokenAddy) {
     creator = msg.sender;
     mtgyTokenAddy = _mtgyTokenAddy;
-    _token = MTGY(_mtgyTokenAddy);
+    _mtgy = ERC20(_mtgyTokenAddy);
   }
 
-  function changeMtgyTokenAddy(address _tokenAddy) public {
+  function changeMtgyTokenAddy(address _mtgyAddy) public {
     require(
       msg.sender == creator,
       'changeMtgyTokenAddy user must be contract creator'
     );
-    mtgyTokenAddy = _tokenAddy;
-    _token = MTGY(_tokenAddy);
+    mtgyTokenAddy = _mtgyAddy;
+    _mtgy = ERC20(_mtgyAddy);
   }
 
   function changeDevWallet(address _newDevWallet) public {
@@ -77,11 +77,11 @@ contract MTGYSpend {
     uint256 _quarter = _half / uint256(2);
 
     // 50% burn
-    _token.transferFrom(msg.sender, burnWallet, _half);
+    _mtgy.transferFrom(msg.sender, burnWallet, _half);
     // 25% rewards wallet
-    _token.transferFrom(msg.sender, rewardsWallet, _quarter);
+    _mtgy.transferFrom(msg.sender, rewardsWallet, _quarter);
     // 25% dev wallet
-    _token.transferFrom(
+    _mtgy.transferFrom(
       msg.sender,
       devWallet,
       _productCostTokens - _half - _quarter

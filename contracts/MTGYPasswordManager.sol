@@ -9,13 +9,15 @@ import './MTGYSpend.sol';
  * @dev Logic for storing and retrieving account information from the blockchain.
  */
 contract MTGYPasswordManager {
+  using SafeMath for uint256;
+
   MTGY private _mtgy;
   MTGYSpend private _mtgySpend;
 
   address public creator;
   address public mtgyTokenAddy;
   address public mtgySpendAddy;
-  uint256 public mtgyServiceCost = 500 * 10**18;
+  uint256 public mtgyServiceCost = 100 * 10**18;
 
   struct AccountInfo {
     string id;
@@ -59,8 +61,12 @@ contract MTGYPasswordManager {
     mtgyServiceCost = _newCost;
   }
 
-  function getAllAccounts() public view returns (AccountInfo[] memory) {
-    return userAccounts[msg.sender];
+  function getAllAccounts(address _userAddy)
+    public
+    view
+    returns (AccountInfo[] memory)
+  {
+    return userAccounts[_userAddy];
   }
 
   function getAccountById(string memory _id)
@@ -84,13 +90,16 @@ contract MTGYPasswordManager {
       });
   }
 
-  function updateAccountById(string memory _id, string memory _newAccountData)
-    public
-    returns (bool)
-  {
+  function updateAccountById(
+    string memory _id,
+    string memory _newIv,
+    string memory _newAccountData
+  ) public returns (bool) {
     AccountInfo[] memory _userInfo = userAccounts[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
       if (_compareStr(_userInfo[_i].id, _id)) {
+        userAccounts[msg.sender][_i].iv = _newIv;
+        userAccounts[msg.sender][_i].timestamp = block.timestamp;
         userAccounts[msg.sender][_i].ciphertext = _newAccountData;
         return true;
       }
@@ -117,10 +126,34 @@ contract MTGYPasswordManager {
     );
   }
 
+  function bulkAddAccounts(AccountInfo[] memory accounts) public {
+    require(
+      accounts.length >= 5,
+      'you need a minimum of 5 accounts too add in bulk at a 50% discount service cost'
+    );
+    uint256 _serviceCostAdjusted = mtgyServiceCost.mul(accounts.length).div(2);
+    _mtgy.transferFrom(msg.sender, address(this), _serviceCostAdjusted);
+    _mtgy.approve(mtgySpendAddy, _serviceCostAdjusted);
+    _mtgySpend.spendOnProduct(_serviceCostAdjusted);
+    for (uint256 _i = 0; _i < accounts.length; _i++) {
+      AccountInfo memory _account = accounts[_i];
+      userAccounts[msg.sender].push(
+        AccountInfo({
+          id: _account.id,
+          timestamp: block.timestamp,
+          iv: _account.iv,
+          ciphertext: _account.ciphertext,
+          isDeleted: false
+        })
+      );
+    }
+  }
+
   function deleteAccount(string memory _id) public returns (bool) {
     AccountInfo[] memory _userInfo = userAccounts[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
       if (_compareStr(_userInfo[_i].id, _id)) {
+        userAccounts[msg.sender][_i].timestamp = block.timestamp;
         userAccounts[msg.sender][_i].isDeleted = true;
         return true;
       }
