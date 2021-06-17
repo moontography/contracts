@@ -129,7 +129,7 @@ contract MTGYPasswordManager {
   function bulkAddAccounts(AccountInfo[] memory accounts) public {
     require(
       accounts.length >= 5,
-      'you need a minimum of 5 accounts too add in bulk at a 50% discount service cost'
+      'you need a minimum of 5 accounts to add in bulk at a 50% discount service cost'
     );
     uint256 _serviceCostAdjusted = mtgyServiceCost.mul(accounts.length).div(2);
     _mtgy.transferFrom(msg.sender, address(this), _serviceCostAdjusted);
