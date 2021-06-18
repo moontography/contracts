@@ -100,27 +100,26 @@ contract MTGYFaaSToken is ERC20 {
     contractIsRemoved = true;
   }
 
-  function updatePerBlockAmount(uint256 _amount) public {
-    require(
-      msg.sender == tokenOwner,
-      'updatePerBlockAmount user must be original token owner'
-    );
-    perBlockNum = _amount;
-  }
-
-  function updateTimestamp(uint256 _newTime) public {
-    require(
-      msg.sender == tokenOwner,
-      'updateTimestamp user must be original token owner'
-    );
-    require(
-      _newTime > lockedUntilDate || _newTime == 0,
-      'you cannot change timestamp if it is before the locked time or was set to be locked forever'
-    );
-    lockedUntilDate = _newTime;
-  }
+  // function updateTimestamp(uint256 _newTime) public {
+  //   require(
+  //     msg.sender == tokenOwner,
+  //     'updateTimestamp user must be original token owner'
+  //   );
+  //   require(
+  //     _newTime > lockedUntilDate || _newTime == 0,
+  //     'you cannot change timestamp if it is before the locked time or was set to be locked forever'
+  //   );
+  //   lockedUntilDate = _newTime;
+  // }
 
   function stakeTokens(uint256 _amount) public {
+    require(
+      getLastStakableBlock() > block.number,
+      'this farm is expired and no more stakers can be added'
+    );
+    if (balanceOf(msg.sender) > 0) {
+      harvestForUser(msg.sender);
+    }
     _stakedToken.transferFrom(msg.sender, address(this), _amount);
     if (totalSupply() == 0) {
       creationBlock = block.number;
@@ -198,46 +197,58 @@ contract MTGYFaaSToken is ERC20 {
     }
 
     uint256 _lastBl = block.number;
-    uint256 _absLastBlock = getLastStakableBlock();
-    if (_absLastBlock < _lastBl) {
-      _lastBl = _absLastBlock;
+    if (getLastStakableBlock() < _lastBl) {
+      _lastBl = getLastStakableBlock();
     }
 
     uint256 _tokensToHarvest = 0;
-    BlockTokenTotal memory _startTotal = blockTotals[_stBlockInd];
-    for (
-      uint256 _block = _staker.blockLastHarvested;
-      _block < _lastBl;
-      _block++
-    ) {
-      BlockTokenTotal memory _nextTotal = blockTotals[_stBlockInd];
-      if (_stBlockInd + 1 < blockTotals.length) {
-        _nextTotal = blockTotals[_stBlockInd + 1];
+    for (uint256 _ind = _stBlockInd; _ind < blockTotals.length; _ind++) {
+      uint256 _startBlock =
+        _max(_staker.blockLastHarvested, blockTotals[_ind].blockNumber);
+      uint256 _endBlock = block.number;
+      if (blockTotals[_ind].totalTokens == 0) {
+        continue;
       }
 
-      if (
-        _block >= _nextTotal.blockNumber &&
-        _startTotal.blockNumber != _nextTotal.blockNumber
-      ) {
-        if (_stBlockInd + 1 < blockTotals.length) {
-          _startTotal = blockTotals[_stBlockInd + 1];
-          _stBlockInd++;
-        }
+      BlockTokenTotal memory _nextTotal = blockTotals[_ind];
+      if (_ind + 1 < blockTotals.length) {
+        _nextTotal = blockTotals[_ind + 1];
       }
 
-      if (_startTotal.totalTokens > 0) {
-        // Solidity division is integer division, so you can't divide by a larger number
-        // and get anything other than 0. Need to do multiplication first then
-        // divide by the total.
-        // _tokensToHarvest += perBlockNum.mul(
-        //   balanceOf(_userAddy).div(_startTotal.totalTokens)
-        // );
-        _tokensToHarvest += balanceOf(_userAddy).mul(perBlockNum).div(
-          _startTotal.totalTokens
-        );
+      if (_lastBl <= _endBlock) {
+        _endBlock = _lastBl;
+      } else if (_nextTotal.blockNumber != blockTotals[_ind].blockNumber) {
+        _endBlock = _nextTotal.blockNumber;
+      }
+
+      // Solidity division is integer division, so you can't divide by a larger number
+      // and get anything other than 0. Need to do multiplication first then
+      // divide by the total.
+      // _tokensToHarvest += perBlockNum.mul(_endBlock - _startBlock).mul(
+      //   balanceOf(_userAddy).div(blockTotals[_ind].totalTokens)
+      // );
+      _tokensToHarvest += (_endBlock.sub(_startBlock)).mul(
+        (
+          balanceOf(_userAddy).mul(perBlockNum).div(
+            blockTotals[_ind].totalTokens
+          )
+        )
+      );
+
+      // if we are at the end of the farming period,
+      // there are no more tokens that can be earned
+      if (_endBlock == _lastBl) {
+        break;
       }
     }
     return _tokensToHarvest;
+  }
+
+  function _max(uint256 a, uint256 b) private pure returns (uint256) {
+    if (a > b) {
+      return a;
+    }
+    return b;
   }
 
   function _harvestTokens(address _userAddy) private returns (uint256) {
