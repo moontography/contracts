@@ -91,7 +91,7 @@ contract MTGYFaaS {
         _lockedUntilDate
       );
     allFarmingContracts.push(address(_contract));
-    tokensUpForStaking[_rewardsTokenAddy].push(address(_contract));
+    tokensUpForStaking[_stakedTokenAddy].push(address(_contract));
     totalStakingContracts++;
 
     // Send the new contract all the tokens from the sending user to be staked and harvested
