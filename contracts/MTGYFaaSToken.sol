@@ -138,13 +138,16 @@ contract MTGYFaaSToken is ERC20 {
     _updNumStaked(_amount, 'add');
   }
 
-  function unstakeTokens(uint256 _amount) public {
+  function unstakeTokens(uint256 _amount, bool shouldHarvest) public {
     require(
       _amount <= balanceOf(msg.sender),
       'user can only unstake amount they have currently staked or less'
     );
 
-    harvestForUser(msg.sender);
+    if (shouldHarvest) {
+      harvestForUser(msg.sender);
+    }
+
     transfer(_burner, _amount);
     require(
       _stakedToken.transfer(msg.sender, _amount),
@@ -178,20 +181,6 @@ contract MTGYFaaSToken is ERC20 {
   function calcHarvestTot(address _userAddy) public view returns (uint256) {
     TokenHarvester memory _staker = tokenStakers[_userAddy];
 
-    // get the appropriate first index for the blockTotals we're checking
-    // based on when the user last harvested tokens.
-    uint256 _stBlockInd = 0;
-    while (blockTotals[_stBlockInd].blockNumber < _staker.blockLastHarvested) {
-      if (
-        _stBlockInd + 1 < blockTotals.length &&
-        blockTotals[_stBlockInd + 1].blockNumber < _staker.blockLastHarvested
-      ) {
-        _stBlockInd++;
-      } else {
-        break;
-      }
-    }
-
     if (_staker.blockLastHarvested == block.number) {
       return uint256(0);
     }
@@ -202,23 +191,35 @@ contract MTGYFaaSToken is ERC20 {
     }
 
     uint256 _tokensToHarvest = 0;
+    uint256 _stBlockInd = 0;
     for (uint256 _ind = _stBlockInd; _ind < blockTotals.length; _ind++) {
       uint256 _startBlock =
         _max(_staker.blockLastHarvested, blockTotals[_ind].blockNumber);
       uint256 _endBlock = block.number;
       if (blockTotals[_ind].totalTokens == 0) {
         continue;
+      } else if (blockTotals[_ind].totalTokens < balanceOf(_userAddy)) {
+        continue;
       }
 
       BlockTokenTotal memory _nextTotal = blockTotals[_ind];
       if (_ind + 1 < blockTotals.length) {
         _nextTotal = blockTotals[_ind + 1];
+        if (_nextTotal.blockNumber <= _staker.blockLastHarvested) {
+          continue;
+        }
+      }
+
+      if (_nextTotal.blockNumber != blockTotals[_ind].blockNumber) {
+        _endBlock = _nextTotal.blockNumber;
       }
 
       if (_lastBl <= _endBlock) {
         _endBlock = _lastBl;
-      } else if (_nextTotal.blockNumber != blockTotals[_ind].blockNumber) {
-        _endBlock = _nextTotal.blockNumber;
+      }
+
+      if (_startBlock >= _endBlock) {
+        continue;
       }
 
       // Solidity division is integer division, so you can't divide by a larger number
@@ -237,7 +238,7 @@ contract MTGYFaaSToken is ERC20 {
 
       // if we are at the end of the farming period,
       // there are no more tokens that can be earned
-      if (_endBlock == _lastBl) {
+      if (_lastBl <= _endBlock) {
         break;
       }
     }
