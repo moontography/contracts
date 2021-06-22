@@ -69,7 +69,8 @@ contract MTGYFaaS {
     address _stakedTokenAddy,
     uint256 _supply,
     uint256 _perBlockAllocation,
-    uint256 _lockedUntilDate
+    uint256 _lockedUntilDate,
+    uint256 _timelockSeconds
   ) public {
     // pay the MTGY fee for using MTGYFaaS
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
@@ -88,7 +89,8 @@ contract MTGYFaaS {
         _stakedTokenAddy,
         msg.sender,
         _perBlockAllocation,
-        _lockedUntilDate
+        _lockedUntilDate,
+        _timelockSeconds
       );
     allFarmingContracts.push(address(_contract));
     tokensUpForStaking[_stakedTokenAddy].push(address(_contract));

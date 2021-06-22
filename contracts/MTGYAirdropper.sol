@@ -5,10 +5,10 @@ import '../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import './MTGYSpend.sol';
 
 /**
- * @title MTGYBulkTokenSender
+ * @title MTGYAirdropper
  * @dev Allows sending an ERC20 token to multiple addresses in different amounts
  */
-contract MTGYBulkTokenSender {
+contract MTGYAirdropper {
   ERC20 private _mtgy;
   MTGYSpend private _mtgySpend;
 

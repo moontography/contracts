@@ -12,28 +12,34 @@ import './MTGYFaaS.sol';
  */
 contract MTGYFaaSToken is ERC20 {
   using SafeMath for uint256;
-
-  address public creator;
-  address public tokenOwner;
-  uint256 public origTotSupply;
-  uint256 public curRewardsSupply;
-  address public rewardsTokenAddress;
-  address public stakedTokenAddress;
-  uint256 public totalTokensStaked;
-  uint256 public creationBlock;
-  uint256 public perBlockNum;
-  uint256 public lockedUntilDate;
   bool public contractIsRemoved = false;
 
   MTGYFaaS private _parentContract;
   ERC20 private _rewardsToken;
   ERC20 private _stakedToken;
+  PoolInfo public pool;
   address private constant _burner = 0x000000000000000000000000000000000000dEaD;
 
-  struct TokenHarvester {
-    address tokenAddy;
-    uint256 blockOriginallStaked;
-    uint256 blockLastHarvested;
+  struct PoolInfo {
+    address creator; // address of contract creator
+    address tokenOwner; // address of original rewards token owner
+    uint256 origTotSupply; // supply of rewards tokens put up to be rewarded by original owner
+    uint256 curRewardsSupply; // current supply of rewards
+    uint256 totalTokensStaked; // current amount of tokens staked
+    uint256 creationBlock; // block this contract was created
+    uint256 perBlockNum; // amount of rewards tokens rewarded per block
+    uint256 lockedUntilDate; // unix timestamp of how long this contract is locked and can't be changed
+    // uint256 allocPoint; // How many allocation points assigned to this pool. ERC20s to distribute per block.
+    uint256 lastRewardBlock; // Last block number that ERC20s distribution occurs.
+    uint256 accERC20PerShare; // Accumulated ERC20s per share, times 1e54.
+    uint256 stakeTimeLockSec; // number of seconds after depositing the user is required to stake before unstaking
+  }
+
+  struct StakerInfo {
+    uint256 blockOriginallyStaked; // block the user originally staked
+    uint256 timeOriginallyStaked; // unix timestamp in seconds that the user originally staked
+    uint256 blockLastHarvested; // the block the user last claimed/harvested rewards
+    uint256 rewardDebt; // Reward debt. See explanation below.
   }
 
   struct BlockTokenTotal {
@@ -44,9 +50,10 @@ contract MTGYFaaSToken is ERC20 {
   // mapping of userAddresses => tokenAddresses that can
   // can be evaluated to determine for a particular user which tokens
   // they are staking.
-  mapping(address => TokenHarvester) public tokenStakers;
+  mapping(address => StakerInfo) public stakers;
 
-  BlockTokenTotal[] public blockTotals;
+  event Deposit(address indexed user, uint256 amount);
+  event Withdraw(address indexed user, uint256 amount);
 
   /**
    * @notice The constructor for the Staking Token.
@@ -58,6 +65,7 @@ contract MTGYFaaSToken is ERC20 {
    * @param _originalTokenOwner Address of user putting up staking tokens to be staked
    * @param _perBlockAmount Amount of tokens to be rewarded per block
    * @param _lockedUntilDate Unix timestamp that the staked tokens will be locked. 0 means locked forever until all tokens are staked
+   * @param _stakeTimeLockSec number of seconds a user is required to stake, or 0 if none
    */
   constructor(
     string memory _name,
@@ -67,7 +75,8 @@ contract MTGYFaaSToken is ERC20 {
     address _stakedTokenAddy,
     address _originalTokenOwner,
     uint256 _perBlockAmount,
-    uint256 _lockedUntilDate
+    uint256 _lockedUntilDate,
+    uint256 _stakeTimeLockSec
   ) ERC20(_name, _symbol) {
     require(
       _perBlockAmount > uint256(0) && _perBlockAmount <= uint256(_rewardSupply),
@@ -80,23 +89,40 @@ contract MTGYFaaSToken is ERC20 {
       'locked time must be after now or 0'
     );
 
-    creationBlock = block.number;
-    creator = msg.sender;
-    origTotSupply = _rewardSupply;
-    curRewardsSupply = _rewardSupply;
-    tokenOwner = _originalTokenOwner;
-    rewardsTokenAddress = _rewardsTokenAddy;
-    stakedTokenAddress = _stakedTokenAddy;
-    perBlockNum = _perBlockAmount;
-    lockedUntilDate = _lockedUntilDate;
-    _parentContract = MTGYFaaS(creator);
+    _parentContract = MTGYFaaS(msg.sender);
     _rewardsToken = ERC20(_rewardsTokenAddy);
     _stakedToken = ERC20(_stakedTokenAddy);
+
+    pool = PoolInfo({
+      creator: msg.sender,
+      tokenOwner: _originalTokenOwner,
+      origTotSupply: _rewardSupply,
+      curRewardsSupply: _rewardSupply,
+      totalTokensStaked: 0,
+      creationBlock: 0,
+      perBlockNum: _perBlockAmount,
+      lockedUntilDate: _lockedUntilDate,
+      lastRewardBlock: block.number,
+      accERC20PerShare: 0,
+      stakeTimeLockSec: _stakeTimeLockSec
+    });
+  }
+
+  function stakedTokenAddress() public view returns (address) {
+    return address(_stakedToken);
+  }
+
+  function rewardsTokenAddress() public view returns (address) {
+    return address(_rewardsToken);
   }
 
   function removeStakeableTokens() public {
-    require(msg.sender == creator, 'caller must be the contract creator');
-    _rewardsToken.transfer(tokenOwner, curRewardsSupply);
+    require(
+      msg.sender == pool.creator || msg.sender == pool.tokenOwner,
+      'caller must be the contract creator or owner to remove stakable tokens'
+    );
+    _rewardsToken.transfer(pool.tokenOwner, pool.curRewardsSupply);
+    pool.curRewardsSupply = 0;
     contractIsRemoved = true;
   }
 
@@ -117,18 +143,23 @@ contract MTGYFaaSToken is ERC20 {
       getLastStakableBlock() > block.number,
       'this farm is expired and no more stakers can be added'
     );
+
+    _updatePool();
+
     if (balanceOf(msg.sender) > 0) {
       harvestForUser(msg.sender);
     }
     _stakedToken.transferFrom(msg.sender, address(this), _amount);
     if (totalSupply() == 0) {
-      creationBlock = block.number;
+      pool.creationBlock = block.number;
+      pool.lastRewardBlock = block.number;
     }
     _mint(msg.sender, _amount);
-    tokenStakers[msg.sender] = TokenHarvester({
-      tokenAddy: address(_stakedToken),
-      blockOriginallStaked: block.number,
-      blockLastHarvested: block.number
+    stakers[msg.sender] = StakerInfo({
+      blockOriginallyStaked: block.number,
+      timeOriginallyStaked: block.timestamp,
+      blockLastHarvested: block.number,
+      rewardDebt: balanceOf(msg.sender).mul(pool.accERC20PerShare).div(1e54)
     });
 
     _parentContract.addUserAsStaking(msg.sender);
@@ -136,13 +167,24 @@ contract MTGYFaaSToken is ERC20 {
       _parentContract.addUserToContract(msg.sender, address(this));
     }
     _updNumStaked(_amount, 'add');
+    emit Deposit(msg.sender, _amount);
   }
 
+  // pass 'false' for shouldHarvest for emergency unstaking without claiming rewards
   function unstakeTokens(uint256 _amount, bool shouldHarvest) public {
     require(
       _amount <= balanceOf(msg.sender),
       'user can only unstake amount they have currently staked or less'
     );
+    StakerInfo memory _staker = stakers[msg.sender];
+
+    // make sure if theres a time lock that it's past the time lock
+    require(
+      block.timestamp >= _staker.timeOriginallyStaked + pool.stakeTimeLockSec,
+      'you have not staked for minimum time lock yet'
+    );
+
+    _updatePool();
 
     if (shouldHarvest) {
       harvestForUser(msg.sender);
@@ -156,108 +198,85 @@ contract MTGYFaaSToken is ERC20 {
     if (balanceOf(msg.sender) <= 0) {
       _parentContract.removeUserAsStaking(msg.sender);
       _parentContract.removeContractFromUser(msg.sender, address(this));
-      delete tokenStakers[msg.sender];
+      delete stakers[msg.sender];
     }
-
     _updNumStaked(_amount, 'remove');
+    emit Withdraw(msg.sender, _amount);
   }
 
-  function harvestTokens() public returns (uint256) {
-    return _harvestTokens(msg.sender);
-  }
+  // function harvestTokens() public returns (uint256) {
+  //   return _harvestTokens(msg.sender);
+  // }
 
   function harvestForUser(address _userAddy) public returns (uint256) {
     require(
-      msg.sender == creator || msg.sender == _userAddy,
+      msg.sender == pool.creator || msg.sender == _userAddy,
       'can only harvest tokens for someone else if this was the contract creator'
     );
     return _harvestTokens(_userAddy);
   }
 
   function getLastStakableBlock() public view returns (uint256) {
-    return (origTotSupply.div(perBlockNum)).add(creationBlock);
+    uint256 _blockToAdd =
+      pool.creationBlock == 0 ? block.number : pool.creationBlock;
+    return pool.origTotSupply.div(pool.perBlockNum).add(_blockToAdd);
   }
 
   function calcHarvestTot(address _userAddy) public view returns (uint256) {
-    TokenHarvester memory _staker = tokenStakers[_userAddy];
+    StakerInfo memory _staker = stakers[_userAddy];
 
-    if (_staker.blockLastHarvested == block.number) {
+    if (
+      _staker.blockLastHarvested == block.number ||
+      _staker.blockOriginallyStaked == 0 ||
+      pool.totalTokensStaked == 0
+    ) {
       return uint256(0);
     }
 
-    uint256 _lastBl = block.number;
-    if (getLastStakableBlock() < _lastBl) {
-      _lastBl = getLastStakableBlock();
-    }
+    uint256 _accERC20PerShare = pool.accERC20PerShare;
 
-    uint256 _tokensToHarvest = 0;
-    uint256 _stBlockInd = 0;
-    for (uint256 _ind = _stBlockInd; _ind < blockTotals.length; _ind++) {
-      uint256 _startBlock =
-        _max(_staker.blockLastHarvested, blockTotals[_ind].blockNumber);
-      uint256 _endBlock = block.number;
-      if (blockTotals[_ind].totalTokens == 0) {
-        continue;
-      } else if (blockTotals[_ind].totalTokens < balanceOf(_userAddy)) {
-        continue;
-      }
-
-      BlockTokenTotal memory _nextTotal = blockTotals[_ind];
-      if (_ind + 1 < blockTotals.length) {
-        _nextTotal = blockTotals[_ind + 1];
-        if (_nextTotal.blockNumber <= _staker.blockLastHarvested) {
-          continue;
-        }
-      }
-
-      if (_nextTotal.blockNumber != blockTotals[_ind].blockNumber) {
-        _endBlock = _nextTotal.blockNumber;
-      }
-
-      if (_lastBl <= _endBlock) {
-        _endBlock = _lastBl;
-      }
-
-      if (_startBlock >= _endBlock) {
-        continue;
-      }
-
-      // Solidity division is integer division, so you can't divide by a larger number
-      // and get anything other than 0. Need to do multiplication first then
-      // divide by the total.
-      // _tokensToHarvest += perBlockNum.mul(_endBlock - _startBlock).mul(
-      //   balanceOf(_userAddy).div(blockTotals[_ind].totalTokens)
-      // );
-      _tokensToHarvest += (_endBlock.sub(_startBlock)).mul(
-        (
-          balanceOf(_userAddy).mul(perBlockNum).div(
-            blockTotals[_ind].totalTokens
-          )
-        )
+    if (block.number > pool.lastRewardBlock && pool.totalTokensStaked != 0) {
+      uint256 _endBlock = getLastStakableBlock();
+      uint256 _lastBlock = block.number < _endBlock ? block.number : _endBlock;
+      uint256 _nrOfBlocks = _lastBlock.sub(pool.lastRewardBlock);
+      uint256 _erc20Reward = _nrOfBlocks.mul(pool.perBlockNum);
+      _accERC20PerShare = _accERC20PerShare.add(
+        _erc20Reward.mul(1e54).div(pool.totalTokensStaked)
       );
-
-      // if we are at the end of the farming period,
-      // there are no more tokens that can be earned
-      if (_lastBl <= _endBlock) {
-        break;
-      }
     }
-    return _tokensToHarvest;
+
+    return
+      balanceOf(_userAddy).mul(_accERC20PerShare).div(1e54).sub(
+        _staker.rewardDebt
+      );
   }
 
-  function _max(uint256 a, uint256 b) private pure returns (uint256) {
-    if (a > b) {
-      return a;
+  // Update reward variables of the given pool to be up-to-date.
+  function _updatePool() private {
+    uint256 _endBlock = getLastStakableBlock();
+    uint256 _lastBlock = block.number < _endBlock ? block.number : _endBlock;
+
+    if (_lastBlock <= pool.lastRewardBlock) {
+      return;
     }
-    return b;
+    uint256 _stakedSupply = pool.totalTokensStaked;
+    if (_stakedSupply == 0) {
+      pool.lastRewardBlock = _lastBlock;
+      return;
+    }
+
+    uint256 _nrOfBlocks = _lastBlock.sub(pool.lastRewardBlock);
+    uint256 _erc20Reward = _nrOfBlocks.mul(pool.perBlockNum);
+
+    pool.accERC20PerShare = pool.accERC20PerShare.add(
+      _erc20Reward.mul(1e54).div(_stakedSupply)
+    );
+    pool.lastRewardBlock = _lastBlock;
   }
 
   function _harvestTokens(address _userAddy) private returns (uint256) {
-    TokenHarvester memory _num = tokenStakers[_userAddy];
-    require(_num.blockOriginallStaked > 0, 'user must have tokens staked');
-
-    uint256 _diff = block.number - _num.blockLastHarvested;
-    require(_diff >= 0, 'must be after when the user last harvested');
+    StakerInfo storage _staker = stakers[_userAddy];
+    require(_staker.blockOriginallyStaked > 0, 'user must have tokens staked');
 
     uint256 _num2Trans = calcHarvestTot(_userAddy);
     if (_num2Trans > 0) {
@@ -265,26 +284,22 @@ contract MTGYFaaSToken is ERC20 {
         _rewardsToken.transfer(_userAddy, _num2Trans),
         'unable to send user their harvested tokens'
       );
-      curRewardsSupply = curRewardsSupply.sub(_num2Trans);
+      pool.curRewardsSupply = pool.curRewardsSupply.sub(_num2Trans);
     }
-    tokenStakers[_userAddy].blockLastHarvested = block.number;
+    _staker.rewardDebt = balanceOf(_userAddy).mul(pool.accERC20PerShare).div(
+      1e54
+    );
+    _staker.blockLastHarvested = block.number;
     return _num2Trans;
   }
 
   // update the amount currently staked after a user harvests
   function _updNumStaked(uint256 _amount, string memory _operation) private {
     if (_compareStr(_operation, 'remove')) {
-      totalTokensStaked = totalTokensStaked - _amount;
+      pool.totalTokensStaked = pool.totalTokensStaked.sub(_amount);
     } else {
-      totalTokensStaked = totalTokensStaked + _amount;
+      pool.totalTokensStaked = pool.totalTokensStaked.add(_amount);
     }
-
-    BlockTokenTotal memory newBlockTotal =
-      BlockTokenTotal({
-        blockNumber: block.number,
-        totalTokens: totalTokensStaked
-      });
-    blockTotals.push(newBlockTotal);
   }
 
   function _compareStr(string memory a, string memory b)
