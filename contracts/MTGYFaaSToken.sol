@@ -108,12 +108,32 @@ contract MTGYFaaSToken is ERC20 {
     });
   }
 
+  // SHOULD ONLY BE CALLED AT CONTRACT CREATION and allows changing
+  // the initial supply if tokenomics of token transfer causes
+  // the original staking contract supply to be less than the original
+  function updateSupply(uint256 _newSupply) public {
+    require(
+      msg.sender == pool.creator,
+      'only contract creator can update the supply'
+    );
+    pool.origTotSupply = _newSupply;
+    pool.curRewardsSupply = _newSupply;
+  }
+
   function stakedTokenAddress() public view returns (address) {
     return address(_stakedToken);
   }
 
   function rewardsTokenAddress() public view returns (address) {
     return address(_rewardsToken);
+  }
+
+  function tokenOwner() public view returns (address) {
+    return pool.tokenOwner;
+  }
+
+  function getLockedUntilDate() public view returns (uint256) {
+    return pool.lockedUntilDate;
   }
 
   function removeStakeableTokens() public {
@@ -149,12 +169,21 @@ contract MTGYFaaSToken is ERC20 {
     if (balanceOf(msg.sender) > 0) {
       harvestForUser(msg.sender);
     }
+    uint256 _contractBalanceBefore = _stakedToken.balanceOf(address(this));
     _stakedToken.transferFrom(msg.sender, address(this), _amount);
+
+    // in the event a token contract on transfer taxes, burns, etc. tokens
+    // the contract might not get the entire amount that the user originally
+    // transferred. Need to calculate from the previous contract balance
+    // so we know how many were actually transferred.
+    uint256 _finalAmountTransferred =
+      _stakedToken.balanceOf(address(this)).sub(_contractBalanceBefore);
+
     if (totalSupply() == 0) {
       pool.creationBlock = block.number;
       pool.lastRewardBlock = block.number;
     }
-    _mint(msg.sender, _amount);
+    _mint(msg.sender, _finalAmountTransferred);
     stakers[msg.sender] = StakerInfo({
       blockOriginallyStaked: block.number,
       timeOriginallyStaked: block.timestamp,
@@ -166,8 +195,8 @@ contract MTGYFaaSToken is ERC20 {
     if (!_parentContract.doesUserHaveContract(msg.sender, address(this))) {
       _parentContract.addUserToContract(msg.sender, address(this));
     }
-    _updNumStaked(_amount, 'add');
-    emit Deposit(msg.sender, _amount);
+    _updNumStaked(_finalAmountTransferred, 'add');
+    emit Deposit(msg.sender, _finalAmountTransferred);
   }
 
   // pass 'false' for shouldHarvest for emergency unstaking without claiming rewards
@@ -178,10 +207,17 @@ contract MTGYFaaSToken is ERC20 {
     );
     StakerInfo memory _staker = stakers[msg.sender];
 
-    // make sure if theres a time lock that it's past the time lock
+    // allow unstaking if the user is emergency unstaking and not getting rewards or
+    // if theres a time lock that it's past the time lock or
+    // the contract rewards were removed by the original contract creator or
+    // the contract is expired
     require(
-      block.timestamp >= _staker.timeOriginallyStaked + pool.stakeTimeLockSec,
-      'you have not staked for minimum time lock yet'
+      !shouldHarvest ||
+        block.timestamp >=
+        _staker.timeOriginallyStaked.add(pool.stakeTimeLockSec) ||
+        contractIsRemoved ||
+        block.number > getLastStakableBlock(),
+      'you have not staked for minimum time lock yet and the pool is not expired'
     );
 
     _updatePool();

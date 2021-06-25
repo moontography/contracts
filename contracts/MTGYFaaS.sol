@@ -80,11 +80,23 @@ contract MTGYFaaS {
     // create new MTGYFaaSToken contract which will serve as the core place for
     // users to stake their tokens and earn rewards
     ERC20 _rewToken = ERC20(_rewardsTokenAddy);
+
+    // Send the new contract all the tokens from the sending user to be staked and harvested
+    _rewToken.transferFrom(msg.sender, address(this), _supply);
+
+    // in order to handle tokens that take tax, are burned, etc. when transferring, need to get
+    // the user's balance after transferring in order to send the remainder of the tokens
+    // instead of the full original supply. Similar to slippage on a DEX
+    uint256 _updatedSupply =
+      _supply <= _rewToken.balanceOf(address(this))
+        ? _supply
+        : _rewToken.balanceOf(address(this));
+
     MTGYFaaSToken _contract =
       new MTGYFaaSToken(
         'Moontography Staking Token',
         'sMTGY',
-        _supply,
+        _updatedSupply,
         _rewardsTokenAddy,
         _stakedTokenAddy,
         msg.sender,
@@ -96,29 +108,37 @@ contract MTGYFaaS {
     tokensUpForStaking[_stakedTokenAddy].push(address(_contract));
     totalStakingContracts++;
 
-    // Send the new contract all the tokens from the sending user to be staked and harvested
-    _rewToken.transferFrom(msg.sender, address(this), _supply);
-    _rewToken.transfer(address(_contract), _supply);
+    _rewToken.transfer(address(_contract), _updatedSupply);
+
+    // do one more double check on balance of rewards token
+    // in the staking contract and update if need be
+    uint256 _finalSupply =
+      _updatedSupply <= _rewToken.balanceOf(address(_contract))
+        ? _updatedSupply
+        : _rewToken.balanceOf(address(_contract));
+    if (_updatedSupply != _finalSupply) {
+      _contract.updateSupply(_finalSupply);
+    }
   }
 
-  // function removeTokenContract(address _faasTokenAddy) public {
-  //   MTGYFaaSToken _contract = MTGYFaaSToken(_faasTokenAddy);
-  //   require(
-  //     msg.sender == _contract.tokenOwner(),
-  //     'user must be the original token owner to remove tokens'
-  //   );
-  //   require(
-  //     block.timestamp > _contract.lockedUntilDate() &&
-  //       _contract.lockedUntilDate() != 0,
-  //     'it must be after the locked time the user originally configured and not locked forever'
-  //   );
+  function removeTokenContract(address _faasTokenAddy) public {
+    MTGYFaaSToken _contract = MTGYFaaSToken(_faasTokenAddy);
+    require(
+      msg.sender == _contract.tokenOwner(),
+      'user must be the original token owner to remove tokens'
+    );
+    require(
+      block.timestamp > _contract.getLockedUntilDate() &&
+        _contract.getLockedUntilDate() != 0,
+      'it must be after the locked time the user originally configured and not locked forever'
+    );
 
-  //   for (uint256 _i = 0; _i < allUsersStaking.length; _i++) {
-  //     _contract.harvestForUser(allUsersStaking[_i]);
-  //   }
-  //   _contract.removeStakeableTokens();
-  //   totalStakingContracts--;
-  // }
+    for (uint256 _i = 0; _i < allUsersStaking.length; _i++) {
+      _contract.harvestForUser(allUsersStaking[_i]);
+    }
+    _contract.removeStakeableTokens();
+    totalStakingContracts--;
+  }
 
   function userInd(address _addy) public view returns (int256) {
     for (uint256 _i = 0; _i < allUsersStaking.length; _i++) {

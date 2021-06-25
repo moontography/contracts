@@ -53,14 +53,30 @@ contract MTGYAirdropper {
     mtgyServiceCost = _newCost;
   }
 
-  function bulkSendTokens(
+  function bulkSendMainTokens(Receiver[] memory _addressesAndAmounts)
+    public
+    payable
+    returns (bool)
+  {
+    _payForService();
+
+    bool _wasSent = true;
+
+    for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
+      Receiver memory _user = _addressesAndAmounts[_i];
+      (bool sent, ) =
+        _user.userAddress.call{ value: _user.amountToReceive }('');
+      _wasSent = _wasSent == false ? false : sent;
+    }
+    return _wasSent;
+  }
+
+  function bulkSendErc20Tokens(
     address _tokenAddress,
     uint256 _totalAmount,
     Receiver[] memory _addressesAndAmounts
-  ) public {
-    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
-    _mtgySpend.spendOnProduct(mtgyServiceCost);
+  ) public returns (bool) {
+    _payForService();
 
     ERC20 _token = ERC20(_tokenAddress);
     _token.transferFrom(msg.sender, address(this), _totalAmount);
@@ -68,5 +84,12 @@ contract MTGYAirdropper {
       Receiver memory _user = _addressesAndAmounts[_i];
       _token.transfer(_user.userAddress, _user.amountToReceive);
     }
+    return true;
+  }
+
+  function _payForService() private {
+    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
+    _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
+    _mtgySpend.spendOnProduct(mtgyServiceCost);
   }
 }
