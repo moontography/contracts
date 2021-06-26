@@ -240,6 +240,25 @@ contract MTGYFaaSToken is ERC20 {
     emit Withdraw(msg.sender, _amount);
   }
 
+  function emergencyUnstake() public {
+    uint256 _amount = balanceOf(msg.sender);
+    require(
+      _amount > 0,
+      'user can only unstake if they have tokens in the pool'
+    );
+
+    transfer(_burner, _amount);
+    require(
+      _stakedToken.transfer(msg.sender, _amount),
+      'unable to send user original tokens'
+    );
+    _parentContract.removeUserAsStaking(msg.sender);
+    _parentContract.removeContractFromUser(msg.sender, address(this));
+    delete stakers[msg.sender];
+    _updNumStaked(_amount, 'remove');
+    emit Withdraw(msg.sender, _amount);
+  }
+
   // function harvestTokens() public returns (uint256) {
   //   return _harvestTokens(msg.sender);
   // }
