@@ -31,7 +31,7 @@ contract MTGYFaaSToken is ERC20 {
     uint256 lockedUntilDate; // unix timestamp of how long this contract is locked and can't be changed
     // uint256 allocPoint; // How many allocation points assigned to this pool. ERC20s to distribute per block.
     uint256 lastRewardBlock; // Last block number that ERC20s distribution occurs.
-    uint256 accERC20PerShare; // Accumulated ERC20s per share, times 1e54.
+    uint256 accERC20PerShare; // Accumulated ERC20s per share, times 1e36.
     uint256 stakeTimeLockSec; // number of seconds after depositing the user is required to stake before unstaking
   }
 
@@ -188,7 +188,7 @@ contract MTGYFaaSToken is ERC20 {
       blockOriginallyStaked: block.number,
       timeOriginallyStaked: block.timestamp,
       blockLastHarvested: block.number,
-      rewardDebt: balanceOf(msg.sender).mul(pool.accERC20PerShare).div(1e54)
+      rewardDebt: balanceOf(msg.sender).mul(pool.accERC20PerShare).div(1e36)
     });
 
     _parentContract.addUserAsStaking(msg.sender);
@@ -277,12 +277,12 @@ contract MTGYFaaSToken is ERC20 {
       uint256 _nrOfBlocks = _lastBlock.sub(pool.lastRewardBlock);
       uint256 _erc20Reward = _nrOfBlocks.mul(pool.perBlockNum);
       _accERC20PerShare = _accERC20PerShare.add(
-        _erc20Reward.mul(1e54).div(pool.totalTokensStaked)
+        _erc20Reward.mul(1e36).div(pool.totalTokensStaked)
       );
     }
 
     return
-      balanceOf(_userAddy).mul(_accERC20PerShare).div(1e54).sub(
+      balanceOf(_userAddy).mul(_accERC20PerShare).div(1e36).sub(
         _staker.rewardDebt
       );
   }
@@ -305,7 +305,7 @@ contract MTGYFaaSToken is ERC20 {
     uint256 _erc20Reward = _nrOfBlocks.mul(pool.perBlockNum);
 
     pool.accERC20PerShare = pool.accERC20PerShare.add(
-      _erc20Reward.mul(1e54).div(_stakedSupply)
+      _erc20Reward.mul(1e36).div(_stakedSupply)
     );
     pool.lastRewardBlock = _lastBlock;
   }
@@ -323,7 +323,7 @@ contract MTGYFaaSToken is ERC20 {
       pool.curRewardsSupply = pool.curRewardsSupply.sub(_num2Trans);
     }
     _staker.rewardDebt = balanceOf(_userAddy).mul(pool.accERC20PerShare).div(
-      1e54
+      1e36
     );
     _staker.blockLastHarvested = block.number;
     return _num2Trans;
