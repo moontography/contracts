@@ -73,16 +73,14 @@ contract MTGYAirdropper {
 
   function bulkSendErc20Tokens(
     address _tokenAddress,
-    uint256 _totalAmount,
     Receiver[] memory _addressesAndAmounts
   ) public returns (bool) {
     _payForService();
 
     ERC20 _token = ERC20(_tokenAddress);
-    _token.transferFrom(msg.sender, address(this), _totalAmount);
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
       Receiver memory _user = _addressesAndAmounts[_i];
-      _token.transfer(_user.userAddress, _user.amountToReceive);
+      _token.transferFrom(msg.sender, _user.userAddress, _user.amountToReceive);
     }
     return true;
   }
