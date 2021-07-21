@@ -12,6 +12,10 @@ import './MTGYAtomicSwapInstance.sol';
  */
 contract MTGYAtomicSwap is Ownable {
   struct TargetSwapInfo {
+    bytes32 id;
+    uint256 timestamp;
+    uint256 index;
+    address creator;
     address sourceContract;
     string targetNetwork;
     address targetContract;
@@ -22,26 +26,23 @@ contract MTGYAtomicSwap is Ownable {
   MTGYSpend private _spend;
 
   uint256 public mtgyServiceCost = 25000 * 10**18;
-  uint256 public swapCreationGasLoadAmount = 2 * 10**16; // 0.02 ether
+  uint256 public swapCreationGasLoadAmount = 1 * 10**16; // 10 finney (0.01 ether)
   address public creator;
   address payable public oracleAddress;
 
-  // mapping with "0xSourceNetworkContract" => targetNetworkContractInfo that
+  // mapping with "0xSourceContractInstance" => targetContractInstanceInfo that
   // our oracle can query and get the target network contract as needed.
   TargetSwapInfo[] public targetSwapContracts;
   mapping(address => TargetSwapInfo) public targetSwapContractsIndexed;
+  mapping(address => TargetSwapInfo) private lastUserCreatedContract;
 
-  // ASContract => contractCreators so we can store who created the source network
-  // AS contract for permissioning of changing any data
-  mapping(address => address) public contractCreators;
-
-  event CreateSwapContract(
-    uint256 swapContractIndex,
-    address contractAddress,
-    string targetNetwork,
-    address indexed targetContract,
-    address creator
-  );
+  // event CreateSwapContract(
+  //   uint256 timestamp,
+  //   address contractAddress,
+  //   string targetNetwork,
+  //   address indexed targetContract,
+  //   address creator
+  // );
 
   constructor(
     address _mtgyAddress,
@@ -56,6 +57,14 @@ contract MTGYAtomicSwap is Ownable {
 
   function updateSwapCreationGasLoadAmount(uint256 _amount) public onlyOwner() {
     swapCreationGasLoadAmount = _amount;
+  }
+
+  function getLastCreatedContract(address _addy)
+    public
+    view
+    returns (TargetSwapInfo memory)
+  {
+    return lastUserCreatedContract[_addy];
   }
 
   function changeOracleAddress(address _oracleAddress, bool _changeAll)
@@ -93,25 +102,35 @@ contract MTGYAtomicSwap is Ownable {
   }
 
   function updateSwapContract(
-    uint256 _index,
+    uint256 _createdBlockTimestamp,
     address _sourceContract,
-    string memory _targetNetwork,
     address _targetContract,
     bool _isActive
   ) public {
+    TargetSwapInfo storage swapContInd =
+      targetSwapContractsIndexed[_sourceContract];
+    TargetSwapInfo storage swapCont = targetSwapContracts[swapContInd.index];
+
     require(
       msg.sender == creator ||
-        msg.sender == contractCreators[_sourceContract] ||
+        msg.sender == swapCont.creator ||
         msg.sender == oracleAddress,
       'updateSwapContract must be contract creator'
     );
-    targetSwapContracts[_index] = TargetSwapInfo({
-      sourceContract: _sourceContract,
-      targetNetwork: _targetNetwork,
-      targetContract: _targetContract,
-      isActive: _isActive
-    });
-    targetSwapContractsIndexed[_sourceContract] = targetSwapContracts[_index];
+
+    bytes32 _id =
+      sha256(abi.encodePacked(swapCont.creator, _createdBlockTimestamp));
+    require(
+      swapCont.id == _id && swapContInd.id == _id,
+      "we don't recognize the info you send with the swap"
+    );
+
+    swapCont.targetContract = address(0) != _targetContract
+      ? _targetContract
+      : swapCont.targetContract;
+    swapCont.isActive = _isActive;
+    swapContInd.targetContract = swapCont.targetContract;
+    swapContInd.isActive = _isActive;
   }
 
   function createNewAtomicSwapContract(
@@ -120,7 +139,7 @@ contract MTGYAtomicSwap is Ownable {
     uint256 _maxSwapAmount,
     string memory _targetNetwork,
     address _targetContract
-  ) public payable {
+  ) public payable returns (uint256, address) {
     require(
       msg.value >= swapCreationGasLoadAmount,
       'Going to ask the user to fill up the atomic swap contract with some gas'
@@ -131,6 +150,8 @@ contract MTGYAtomicSwap is Ownable {
 
     MTGYAtomicSwapInstance _contract =
       new MTGYAtomicSwapInstance(
+        address(_mtgy),
+        address(_spend),
         oracleAddress,
         msg.sender,
         _tokenAddy,
@@ -141,24 +162,29 @@ contract MTGYAtomicSwap is Ownable {
     _token.transferFrom(msg.sender, address(_contract), _tokenSupply);
     _contract.updateSupply();
 
-    targetSwapContracts.push(
+    uint256 _ts = block.timestamp;
+    TargetSwapInfo memory newContract =
       TargetSwapInfo({
+        id: sha256(abi.encodePacked(msg.sender, _ts)),
+        timestamp: _ts,
+        index: targetSwapContracts.length,
+        creator: msg.sender,
         sourceContract: address(_contract),
         targetNetwork: _targetNetwork,
         targetContract: _targetContract,
         isActive: true
-      })
-    );
-    targetSwapContractsIndexed[address(_contract)] = targetSwapContracts[
-      targetSwapContracts.length - 1
-    ];
-    contractCreators[address(_contract)] = msg.sender;
-    emit CreateSwapContract(
-      targetSwapContracts.length - 1,
-      address(_contract),
-      _targetNetwork,
-      _targetContract,
-      msg.sender
-    );
+      });
+
+    targetSwapContracts.push(newContract);
+    targetSwapContractsIndexed[address(_contract)] = newContract;
+    lastUserCreatedContract[msg.sender] = newContract;
+    // emit CreateSwapContract(
+    //   _ts,
+    //   address(_contract),
+    //   _targetNetwork,
+    //   _targetContract,
+    //   msg.sender
+    // );
+    return (_ts, address(_contract));
   }
 }
