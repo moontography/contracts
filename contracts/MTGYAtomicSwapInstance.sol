@@ -58,6 +58,8 @@ contract MTGYAtomicSwapInstance is Ownable {
     uint256 amount
   );
 
+  event TokenOwnerUpdated(address previousOwner, address newOwner);
+
   constructor(
     address _mtgyAddress,
     address _mtgySpendAddress,
@@ -76,7 +78,7 @@ contract MTGYAtomicSwapInstance is Ownable {
     _token = ERC20(_tokenAddy);
   }
 
-  function getSwapTokenAddress() public view returns (address) {
+  function getSwapTokenAddress() external view returns (address) {
     return address(_token);
   }
 
@@ -88,14 +90,14 @@ contract MTGYAtomicSwapInstance is Ownable {
     isActive = _isActive;
   }
 
-  function changeMtgyServiceCost(uint256 _newCost) public onlyOwner() {
+  function changeMtgyServiceCost(uint256 _newCost) external onlyOwner() {
     mtgyServiceCost = _newCost;
   }
 
   // should only be called after we instantiate a new instance of
   // this and it's to handle weird tokenomics where we don't get
   // original full supply
-  function updateSupply() public {
+  function updateSupply() external {
     require(
       msg.sender == creator,
       'updateSupply user must be contract creator'
@@ -103,7 +105,7 @@ contract MTGYAtomicSwapInstance is Ownable {
     originalSupply = _token.balanceOf(address(this));
   }
 
-  function changeOracleAddress(address _oracleAddress) public {
+  function changeOracleAddress(address _oracleAddress) external {
     require(
       msg.sender == creator || msg.sender == owner(),
       'updateSupply user must be contract creator'
@@ -112,12 +114,22 @@ contract MTGYAtomicSwapInstance is Ownable {
     transferOwnership(oracleAddress);
   }
 
-  function depositTokens(uint256 _amount) public {
+  function updateTokenOwner(address newOwner) external {
+    require(
+      msg.sender == tokenOwner,
+      'user must be current token owner to change it'
+    );
+    address previousOwner = tokenOwner;
+    tokenOwner = newOwner;
+    emit TokenOwnerUpdated(previousOwner, newOwner);
+  }
+
+  function depositTokens(uint256 _amount) external {
     require(msg.sender == tokenOwner, 'depositTokens user must be token owner');
     _token.transferFrom(msg.sender, address(this), _amount);
   }
 
-  function withdrawTokens(uint256 _amount) public {
+  function withdrawTokens(uint256 _amount) external {
     require(
       msg.sender == tokenOwner,
       'withdrawTokens user must be token owner'
@@ -126,18 +138,21 @@ contract MTGYAtomicSwapInstance is Ownable {
   }
 
   function updateSwapCompletionStatus(bytes32 _id, bool _isComplete)
-    public
+    external
     onlyOwner()
   {
     swaps[_id].isComplete = _isComplete;
   }
 
-  function updateMinimumGasForOperation(uint256 _amountGas) public onlyOwner() {
+  function updateMinimumGasForOperation(uint256 _amountGas)
+    external
+    onlyOwner()
+  {
     minimumGasForOperation = _amountGas;
   }
 
   function receiveTokensFromSource(uint256 _amount)
-    public
+    external
     payable
     returns (bytes32, uint256)
   {
@@ -178,7 +193,7 @@ contract MTGYAtomicSwapInstance is Ownable {
     return (_id, _ts);
   }
 
-  function unsetLastUserSwap(address _addy) public onlyOwner() {
+  function unsetLastUserSwap(address _addy) external onlyOwner() {
     delete lastUserSwap[_addy];
   }
 
@@ -194,7 +209,7 @@ contract MTGYAtomicSwapInstance is Ownable {
     bytes32 _id,
     uint256 _origTimestamp,
     uint256 _amount
-  ) public payable {
+  ) external payable {
     require(
       msg.value >= minimumGasForOperation,
       'you must send enough gas to cover the send transaction'
@@ -219,7 +234,7 @@ contract MTGYAtomicSwapInstance is Ownable {
 
   // This must be called AFTER fundSendToDestinationGas has been executed
   // for this txn to fund this send operation
-  function refundTokensFromSource(bytes32 _id) public {
+  function refundTokensFromSource(bytes32 _id) external {
     require(isActive, 'this atomic swap instance is not active');
 
     Swap storage swap = swaps[_id];
@@ -232,7 +247,7 @@ contract MTGYAtomicSwapInstance is Ownable {
 
   // This must be called AFTER fundSendToDestinationGas has been executed
   // for this txn to fund this send operation
-  function sendTokensToDestination(bytes32 _id) public returns (bytes32) {
+  function sendTokensToDestination(bytes32 _id) external returns (bytes32) {
     require(isActive, 'this atomic swap instance is not active');
 
     Swap storage swap = swaps[_id];
@@ -260,8 +275,8 @@ contract MTGYAtomicSwapInstance is Ownable {
     // We're just validating here that the swap has not been
     // completed and gas has been funded before moving forward.
     require(
-      !swap.isComplete && swap.isSendGasFunded,
-      'swap has already been completed or gas has not been funded'
+      !swap.isComplete && !swap.isRefunded && swap.isSendGasFunded,
+      'swap has already been completed, refunded, or gas has not been funded'
     );
   }
 }
