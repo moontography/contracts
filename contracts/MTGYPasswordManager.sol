@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
+import '@openzeppelin/contracts/access/Ownable.sol';
 import './MTGY.sol';
 import './MTGYSpend.sol';
 
@@ -8,13 +9,12 @@ import './MTGYSpend.sol';
  * @title MTGYPasswordManager
  * @dev Logic for storing and retrieving account information from the blockchain.
  */
-contract MTGYPasswordManager {
+contract MTGYPasswordManager is Ownable {
   using SafeMath for uint256;
 
   MTGY private _mtgy;
   MTGYSpend private _mtgySpend;
 
-  address public creator;
   address public mtgyTokenAddy;
   address public mtgySpendAddy;
   uint256 public mtgyServiceCost = 100 * 10**18;
@@ -31,38 +31,28 @@ contract MTGYPasswordManager {
   mapping(address => AccountInfo[]) public userAccounts;
 
   constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
-    creator = msg.sender;
     mtgyTokenAddy = _mtgyTokenAddy;
     mtgySpendAddy = _mtgySpendAddy;
     _mtgy = MTGY(_mtgyTokenAddy);
     _mtgySpend = MTGYSpend(_mtgySpendAddy);
   }
 
-  function changeMtgyTokenAddy(address _tokenAddy) public {
-    require(
-      msg.sender == creator,
-      'changeMtgyTokenAddy user must be contract creator'
-    );
+  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
     mtgyTokenAddy = _tokenAddy;
     _mtgy = MTGY(_tokenAddy);
   }
 
-  function changeMtgySpendAddy(address _spendAddy) public {
-    require(
-      msg.sender == creator,
-      'changeMtgyTokenAddy user must be contract creator'
-    );
+  function changeMtgySpendAddy(address _spendAddy) external onlyOwner {
     mtgySpendAddy = _spendAddy;
     _mtgySpend = MTGYSpend(_spendAddy);
   }
 
-  function changeServiceCost(uint256 _newCost) public {
-    require(msg.sender == creator, 'user needs to be the contract creator');
+  function changeServiceCost(uint256 _newCost) external onlyOwner {
     mtgyServiceCost = _newCost;
   }
 
   function getAllAccounts(address _userAddy)
-    public
+    external
     view
     returns (AccountInfo[] memory)
   {
@@ -70,7 +60,7 @@ contract MTGYPasswordManager {
   }
 
   function getAccountById(string memory _id)
-    public
+    external
     view
     returns (AccountInfo memory)
   {
@@ -94,7 +84,7 @@ contract MTGYPasswordManager {
     string memory _id,
     string memory _newIv,
     string memory _newAccountData
-  ) public returns (bool) {
+  ) external returns (bool) {
     AccountInfo[] memory _userInfo = userAccounts[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
       if (_compareStr(_userInfo[_i].id, _id)) {
@@ -111,7 +101,7 @@ contract MTGYPasswordManager {
     string memory _id,
     string memory _iv,
     string memory _ciphertext
-  ) public {
+  ) external {
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
     _mtgySpend.spendOnProduct(mtgyServiceCost);
@@ -126,7 +116,7 @@ contract MTGYPasswordManager {
     );
   }
 
-  function bulkAddAccounts(AccountInfo[] memory accounts) public {
+  function bulkAddAccounts(AccountInfo[] memory accounts) external {
     require(
       accounts.length >= 5,
       'you need a minimum of 5 accounts to add in bulk at a 50% discount service cost'
@@ -149,7 +139,7 @@ contract MTGYPasswordManager {
     }
   }
 
-  function deleteAccount(string memory _id) public returns (bool) {
+  function deleteAccount(string memory _id) external returns (bool) {
     AccountInfo[] memory _userInfo = userAccounts[msg.sender];
     for (uint256 _i = 0; _i < _userInfo.length; _i++) {
       if (_compareStr(_userInfo[_i].id, _id)) {

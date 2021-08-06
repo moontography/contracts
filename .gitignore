@@ -1,4 +1,7 @@
 .vscode
-.DS_Store
 node_modules
-dist
+
+#Hardhat files
+cache
+artifacts
+.env

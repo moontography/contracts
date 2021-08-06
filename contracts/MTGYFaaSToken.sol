@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
-import '../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol';
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import './MTGYFaaS.sol';
 
 /**
@@ -111,7 +111,7 @@ contract MTGYFaaSToken is ERC20 {
   // SHOULD ONLY BE CALLED AT CONTRACT CREATION and allows changing
   // the initial supply if tokenomics of token transfer causes
   // the original staking contract supply to be less than the original
-  function updateSupply(uint256 _newSupply) public {
+  function updateSupply(uint256 _newSupply) external {
     require(
       msg.sender == pool.creator,
       'only contract creator can update the supply'
@@ -120,23 +120,23 @@ contract MTGYFaaSToken is ERC20 {
     pool.curRewardsSupply = _newSupply;
   }
 
-  function stakedTokenAddress() public view returns (address) {
+  function stakedTokenAddress() external view returns (address) {
     return address(_stakedToken);
   }
 
-  function rewardsTokenAddress() public view returns (address) {
+  function rewardsTokenAddress() external view returns (address) {
     return address(_rewardsToken);
   }
 
-  function tokenOwner() public view returns (address) {
+  function tokenOwner() external view returns (address) {
     return pool.tokenOwner;
   }
 
-  function getLockedUntilDate() public view returns (uint256) {
+  function getLockedUntilDate() external view returns (uint256) {
     return pool.lockedUntilDate;
   }
 
-  function removeStakeableTokens() public {
+  function removeStakeableTokens() external {
     require(
       msg.sender == pool.creator || msg.sender == pool.tokenOwner,
       'caller must be the contract creator or owner to remove stakable tokens'
@@ -146,7 +146,7 @@ contract MTGYFaaSToken is ERC20 {
     contractIsRemoved = true;
   }
 
-  // function updateTimestamp(uint256 _newTime) public {
+  // function updateTimestamp(uint256 _newTime) external {
   //   require(
   //     msg.sender == tokenOwner,
   //     'updateTimestamp user must be original token owner'
@@ -158,7 +158,7 @@ contract MTGYFaaSToken is ERC20 {
   //   lockedUntilDate = _newTime;
   // }
 
-  function stakeTokens(uint256 _amount) public {
+  function stakeTokens(uint256 _amount) external {
     require(
       getLastStakableBlock() > block.number,
       'this farm is expired and no more stakers can be added'
@@ -167,7 +167,7 @@ contract MTGYFaaSToken is ERC20 {
     _updatePool();
 
     if (balanceOf(msg.sender) > 0) {
-      harvestForUser(msg.sender);
+      _harvestTokens(msg.sender);
     }
     uint256 _contractBalanceBefore = _stakedToken.balanceOf(address(this));
     _stakedToken.transferFrom(msg.sender, address(this), _amount);
@@ -176,8 +176,9 @@ contract MTGYFaaSToken is ERC20 {
     // the contract might not get the entire amount that the user originally
     // transferred. Need to calculate from the previous contract balance
     // so we know how many were actually transferred.
-    uint256 _finalAmountTransferred =
-      _stakedToken.balanceOf(address(this)).sub(_contractBalanceBefore);
+    uint256 _finalAmountTransferred = _stakedToken.balanceOf(address(this)).sub(
+      _contractBalanceBefore
+    );
 
     if (totalSupply() == 0) {
       pool.creationBlock = block.number;
@@ -200,7 +201,7 @@ contract MTGYFaaSToken is ERC20 {
   }
 
   // pass 'false' for shouldHarvest for emergency unstaking without claiming rewards
-  function unstakeTokens(uint256 _amount, bool shouldHarvest) public {
+  function unstakeTokens(uint256 _amount, bool shouldHarvest) external {
     require(
       _amount <= balanceOf(msg.sender),
       'user can only unstake amount they have currently staked or less'
@@ -223,7 +224,7 @@ contract MTGYFaaSToken is ERC20 {
     _updatePool();
 
     if (shouldHarvest) {
-      harvestForUser(msg.sender);
+      _harvestTokens(msg.sender);
     }
 
     transfer(_burner, _amount);
@@ -240,7 +241,7 @@ contract MTGYFaaSToken is ERC20 {
     emit Withdraw(msg.sender, _amount);
   }
 
-  function emergencyUnstake() public {
+  function emergencyUnstake() external {
     uint256 _amount = balanceOf(msg.sender);
     require(
       _amount > 0,
@@ -259,21 +260,19 @@ contract MTGYFaaSToken is ERC20 {
     emit Withdraw(msg.sender, _amount);
   }
 
-  // function harvestTokens() public returns (uint256) {
-  //   return _harvestTokens(msg.sender);
-  // }
-
   function harvestForUser(address _userAddy) public returns (uint256) {
     require(
       msg.sender == pool.creator || msg.sender == _userAddy,
       'can only harvest tokens for someone else if this was the contract creator'
     );
+    _updatePool();
     return _harvestTokens(_userAddy);
   }
 
   function getLastStakableBlock() public view returns (uint256) {
-    uint256 _blockToAdd =
-      pool.creationBlock == 0 ? block.number : pool.creationBlock;
+    uint256 _blockToAdd = pool.creationBlock == 0
+      ? block.number
+      : pool.creationBlock;
     return pool.origTotSupply.div(pool.perBlockNum).add(_blockToAdd);
   }
 
@@ -281,7 +280,7 @@ contract MTGYFaaSToken is ERC20 {
     StakerInfo memory _staker = stakers[_userAddy];
 
     if (
-      _staker.blockLastHarvested == block.number ||
+      _staker.blockLastHarvested >= block.number ||
       _staker.blockOriginallyStaked == 0 ||
       pool.totalTokensStaked == 0
     ) {

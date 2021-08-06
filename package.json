@@ -1,25 +1,29 @@
 {
-  "name": "moontography-smart-contracts",
-  "version": "0.0.1",
-  "description": "Moontography smart contracts and associated code",
-  "main": "node dist/compile",
+  "name": "contracts",
+  "version": "0.1.0",
+  "description": "MTGY contracts",
+  "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "prettier": "prettier --write 'contracts/**/*.sol'"
+    "prettier": "prettier --write 'contracts/**/*.sol'",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Lance Whatley",
   "license": "MIT",
   "devDependencies": {
-    "@types/minimist": "^1.2.1",
-    "@types/node": "^14.14.8",
-    "prettier": "^2.3.0",
-    "prettier-plugin-solidity": "*",
-    "typescript": "^4.0.5"
-  },
-  "dependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-etherscan": "^2.1.4",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/contracts": "^4.1.0",
-    "@openzeppelin/upgrades": "^2.8.0",
-    "minimist": "^1.2.5",
-    "solc": "^0.8.4"
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0",
+    "chai": "^4.3.4",
+    "dotenv": "^10.0.0",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.4.2",
+    "hardhat": "^2.5.0",
+    "hardhat-gas-reporter": "^1.0.4",
+    "prettier": "^2.3.2",
+    "prettier-plugin-solidity": "^1.0.0-beta.17",
+    "solidity-coverage": "^0.7.16"
   }
 }

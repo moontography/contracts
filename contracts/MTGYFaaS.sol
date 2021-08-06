@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
+import '@openzeppelin/contracts/access/Ownable.sol';
 import './MTGYFaaSToken.sol';
 import './MTGYSpend.sol';
 
@@ -10,11 +11,10 @@ import './MTGYSpend.sol';
  * @notice Implements the master FaaS contract to keep track of all tokens being added
  * to be staked and staking.
  */
-contract MTGYFaaS {
+contract MTGYFaaS is Ownable {
   ERC20 private _mtgy;
   MTGYSpend private _spend;
 
-  address public creator;
   uint256 public mtgyServiceCost = 100000 * 10**18;
 
   // this is a mapping of tokenAddress => contractAddress[] that represents
@@ -34,17 +34,16 @@ contract MTGYFaaS {
    * @notice The constructor for the staking master contract.
    */
   constructor(address _mtgyAddress, address _mtgySpendAddress) {
-    creator = msg.sender;
     _mtgy = ERC20(_mtgyAddress);
     _spend = MTGYSpend(_mtgySpendAddress);
   }
 
-  function getAllFarmingContracts() public view returns (address[] memory) {
+  function getAllFarmingContracts() external view returns (address[] memory) {
     return allFarmingContracts;
   }
 
   function getTokensForStaking(address _tokenAddress)
-    public
+    external
     view
     returns (address[] memory)
   {
@@ -52,15 +51,14 @@ contract MTGYFaaS {
   }
 
   function getUserStakingContracts(address _userAddress)
-    public
+    external
     view
     returns (address[] memory)
   {
     return userStakes[_userAddress];
   }
 
-  function changeServiceCost(uint256 newCost) public {
-    require(msg.sender == creator, 'user needs to be the contract creator');
+  function changeServiceCost(uint256 newCost) external onlyOwner {
     mtgyServiceCost = newCost;
   }
 
@@ -71,7 +69,7 @@ contract MTGYFaaS {
     uint256 _perBlockAllocation,
     uint256 _lockedUntilDate,
     uint256 _timelockSeconds
-  ) public {
+  ) external {
     // pay the MTGY fee for using MTGYFaaS
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(address(_spend), mtgyServiceCost);
@@ -87,23 +85,21 @@ contract MTGYFaaS {
     // in order to handle tokens that take tax, are burned, etc. when transferring, need to get
     // the user's balance after transferring in order to send the remainder of the tokens
     // instead of the full original supply. Similar to slippage on a DEX
-    uint256 _updatedSupply =
-      _supply <= _rewToken.balanceOf(address(this))
-        ? _supply
-        : _rewToken.balanceOf(address(this));
+    uint256 _updatedSupply = _supply <= _rewToken.balanceOf(address(this))
+      ? _supply
+      : _rewToken.balanceOf(address(this));
 
-    MTGYFaaSToken _contract =
-      new MTGYFaaSToken(
-        'Moontography Staking Token',
-        'sMTGY',
-        _updatedSupply,
-        _rewardsTokenAddy,
-        _stakedTokenAddy,
-        msg.sender,
-        _perBlockAllocation,
-        _lockedUntilDate,
-        _timelockSeconds
-      );
+    MTGYFaaSToken _contract = new MTGYFaaSToken(
+      'Moontography Staking Token',
+      'sMTGY',
+      _updatedSupply,
+      _rewardsTokenAddy,
+      _stakedTokenAddy,
+      msg.sender,
+      _perBlockAllocation,
+      _lockedUntilDate,
+      _timelockSeconds
+    );
     allFarmingContracts.push(address(_contract));
     tokensUpForStaking[_stakedTokenAddy].push(address(_contract));
     totalStakingContracts++;
@@ -112,16 +108,16 @@ contract MTGYFaaS {
 
     // do one more double check on balance of rewards token
     // in the staking contract and update if need be
-    uint256 _finalSupply =
-      _updatedSupply <= _rewToken.balanceOf(address(_contract))
-        ? _updatedSupply
-        : _rewToken.balanceOf(address(_contract));
+    uint256 _finalSupply = _updatedSupply <=
+      _rewToken.balanceOf(address(_contract))
+      ? _updatedSupply
+      : _rewToken.balanceOf(address(_contract));
     if (_updatedSupply != _finalSupply) {
       _contract.updateSupply(_finalSupply);
     }
   }
 
-  function removeTokenContract(address _faasTokenAddy) public {
+  function removeTokenContract(address _faasTokenAddy) external {
     MTGYFaaSToken _contract = MTGYFaaSToken(_faasTokenAddy);
     require(
       msg.sender == _contract.tokenOwner(),
@@ -149,14 +145,14 @@ contract MTGYFaaS {
     return -1;
   }
 
-  function addUserAsStaking(address _addy) public {
+  function addUserAsStaking(address _addy) external {
     int256 ind = userInd(_addy);
     if (ind == -1) {
       allUsersStaking.push(_addy);
     }
   }
 
-  function removeUserAsStaking(address _addy) public {
+  function removeUserAsStaking(address _addy) external {
     int256 ind = userInd(_addy);
     if (ind > -1) {
       uint256 sind = uint256(ind);
@@ -165,7 +161,7 @@ contract MTGYFaaS {
   }
 
   function doesUserHaveContract(address _userAddress, address _stakingContract)
-    public
+    external
     view
     returns (bool)
   {
@@ -178,7 +174,7 @@ contract MTGYFaaS {
   }
 
   function addUserToContract(address _userAddress, address _stakingContract)
-    public
+    external
   {
     require(
       msg.sender == _stakingContract,
@@ -190,7 +186,7 @@ contract MTGYFaaS {
   }
 
   function removeContractFromUser(address _userAddress, address _stakingAddy)
-    public
+    external
   {
     require(
       msg.sender == _stakingAddy,

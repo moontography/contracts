@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
-import '../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
 import './MTGY.sol';
 import './MTGYSpend.sol';
 
@@ -15,7 +15,6 @@ contract MTGYAtomicSwapInstance is Ownable {
   MTGYSpend private _spend;
   ERC20 private _token;
 
-  address public creator;
   address public tokenOwner;
   address public oracleAddress;
   uint256 public originalSupply;
@@ -68,11 +67,9 @@ contract MTGYAtomicSwapInstance is Ownable {
     address _tokenAddy,
     uint256 _maxSwapAmount
   ) {
-    creator = msg.sender;
     oracleAddress = _oracleAddress;
     tokenOwner = _tokenOwner;
     maxSwapAmount = _maxSwapAmount;
-    transferOwnership(oracleAddress);
     _mtgy = MTGY(_mtgyAddress);
     _spend = MTGYSpend(_mtgySpendAddress);
     _token = ERC20(_tokenAddy);
@@ -82,41 +79,33 @@ contract MTGYAtomicSwapInstance is Ownable {
     return address(_token);
   }
 
-  function changeActiveState(bool _isActive) public {
+  function changeActiveState(bool _isActive) external {
     require(
-      msg.sender == creator || msg.sender == tokenOwner,
+      msg.sender == owner() || msg.sender == tokenOwner,
       'changeActiveState user must be contract creator'
     );
     isActive = _isActive;
   }
 
-  function changeMtgyServiceCost(uint256 _newCost) external onlyOwner() {
+  function changeMtgyServiceCost(uint256 _newCost) external onlyOwner {
     mtgyServiceCost = _newCost;
   }
 
   // should only be called after we instantiate a new instance of
   // this and it's to handle weird tokenomics where we don't get
   // original full supply
-  function updateSupply() external {
-    require(
-      msg.sender == creator,
-      'updateSupply user must be contract creator'
-    );
+  function updateSupply() external onlyOwner {
     originalSupply = _token.balanceOf(address(this));
   }
 
-  function changeOracleAddress(address _oracleAddress) external {
-    require(
-      msg.sender == creator || msg.sender == owner(),
-      'updateSupply user must be contract creator'
-    );
+  function changeOracleAddress(address _oracleAddress) external onlyOwner {
     oracleAddress = _oracleAddress;
     transferOwnership(oracleAddress);
   }
 
   function updateTokenOwner(address newOwner) external {
     require(
-      msg.sender == tokenOwner,
+      msg.sender == tokenOwner || msg.sender == owner(),
       'user must be current token owner to change it'
     );
     address previousOwner = tokenOwner;
@@ -139,15 +128,12 @@ contract MTGYAtomicSwapInstance is Ownable {
 
   function updateSwapCompletionStatus(bytes32 _id, bool _isComplete)
     external
-    onlyOwner()
+    onlyOwner
   {
     swaps[_id].isComplete = _isComplete;
   }
 
-  function updateMinimumGasForOperation(uint256 _amountGas)
-    external
-    onlyOwner()
-  {
+  function updateMinimumGasForOperation(uint256 _amountGas) external onlyOwner {
     minimumGasForOperation = _amountGas;
   }
 
@@ -193,7 +179,7 @@ contract MTGYAtomicSwapInstance is Ownable {
     return (_id, _ts);
   }
 
-  function unsetLastUserSwap(address _addy) external onlyOwner() {
+  function unsetLastUserSwap(address _addy) external onlyOwner {
     delete lastUserSwap[_addy];
   }
 
@@ -263,7 +249,7 @@ contract MTGYAtomicSwapInstance is Ownable {
   function _confirmSwapExistsGasFundedAndSenderValid(Swap memory swap)
     private
     view
-    onlyOwner()
+    onlyOwner
   {
     // functions that call this should only be called by the current owner
     // or oracle address as they will do the appropriate validation beforehand

@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
-import '../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 /**
  * @title MTGYSpend
  * @dev Logic for spending $MTGY on products in the moontography ecosystem.
  */
-contract MTGYSpend {
+contract MTGYSpend is Ownable {
   ERC20 private _mtgy;
 
   struct SpentInfo {
@@ -15,7 +16,6 @@ contract MTGYSpend {
     uint256 tokens;
   }
 
-  address public creator;
   address public constant burnWallet =
     0x000000000000000000000000000000000000dEaD;
   address public devWallet = 0x3A3ffF4dcFCB7a36dADc40521e575380485FA5B8;
@@ -28,37 +28,24 @@ contract MTGYSpend {
   event Spend(address indexed owner, uint256 value);
 
   constructor(address _mtgyTokenAddy) {
-    creator = msg.sender;
     mtgyTokenAddy = _mtgyTokenAddy;
     _mtgy = ERC20(_mtgyTokenAddy);
   }
 
-  function changeMtgyTokenAddy(address _mtgyAddy) public {
-    require(
-      msg.sender == creator,
-      'changeMtgyTokenAddy user must be contract creator'
-    );
+  function changeMtgyTokenAddy(address _mtgyAddy) external onlyOwner {
     mtgyTokenAddy = _mtgyAddy;
     _mtgy = ERC20(_mtgyAddy);
   }
 
-  function changeDevWallet(address _newDevWallet) public {
-    require(
-      msg.sender == creator,
-      'changeDevWallet user must be contract creator'
-    );
+  function changeDevWallet(address _newDevWallet) external onlyOwner {
     devWallet = _newDevWallet;
   }
 
-  function changeRewardsWallet(address _newRewardsWallet) public {
-    require(
-      msg.sender == creator,
-      'changeRewardsWallet user must be contract creator'
-    );
+  function changeRewardsWallet(address _newRewardsWallet) external onlyOwner {
     rewardsWallet = _newRewardsWallet;
   }
 
-  function getSpentByTimestamp() public view returns (SpentInfo[] memory) {
+  function getSpentByTimestamp() external view returns (SpentInfo[] memory) {
     return spentTimestamps;
   }
 
@@ -68,7 +55,7 @@ contract MTGYSpend {
    *   25% goes to rewards wallet for rewards
    *   50% burned
    */
-  function spendOnProduct(uint256 _productCostTokens) public returns (bool) {
+  function spendOnProduct(uint256 _productCostTokens) external returns (bool) {
     totalSpent += _productCostTokens;
     spentTimestamps.push(
       SpentInfo({ timestamp: block.timestamp, tokens: _productCostTokens })

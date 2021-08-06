@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
-import '../node_modules/@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
 import './MTGY.sol';
 import './MTGYSpend.sol';
 import './MTGYAtomicSwapInstance.sol';
@@ -55,12 +55,12 @@ contract MTGYAtomicSwap is Ownable {
     oracleAddress = payable(_oracleAddress);
   }
 
-  function updateSwapCreationGasLoadAmount(uint256 _amount) public onlyOwner() {
+  function updateSwapCreationGasLoadAmount(uint256 _amount) external onlyOwner {
     swapCreationGasLoadAmount = _amount;
   }
 
   function getLastCreatedContract(address _addy)
-    public
+    external
     view
     returns (TargetSwapInfo memory)
   {
@@ -68,24 +68,25 @@ contract MTGYAtomicSwap is Ownable {
   }
 
   function changeOracleAddress(address _oracleAddress, bool _changeAll)
-    public
-    onlyOwner()
+    external
+    onlyOwner
   {
     oracleAddress = payable(_oracleAddress);
     if (_changeAll) {
       for (uint256 _i = 0; _i < targetSwapContracts.length; _i++) {
-        MTGYAtomicSwapInstance _contract =
-          MTGYAtomicSwapInstance(targetSwapContracts[_i].sourceContract);
+        MTGYAtomicSwapInstance _contract = MTGYAtomicSwapInstance(
+          targetSwapContracts[_i].sourceContract
+        );
         _contract.changeOracleAddress(oracleAddress);
       }
     }
   }
 
-  function changeMtgyTokenAddy(address _tokenAddy) public onlyOwner() {
+  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
     _mtgy = MTGY(_tokenAddy);
   }
 
-  function changeSpendAddress(address _spendAddress) public onlyOwner() {
+  function changeSpendAddress(address _spendAddress) external onlyOwner {
     _spend = MTGYSpend(_spendAddress);
   }
 
@@ -93,11 +94,15 @@ contract MTGYAtomicSwap is Ownable {
    * @dev If the price of MTGY changes significantly, need to be able to adjust price
    * to keep cost appropriate for providing the service
    */
-  function changeMtgyServiceCost(uint256 _newCost) public onlyOwner() {
+  function changeMtgyServiceCost(uint256 _newCost) external onlyOwner {
     mtgyServiceCost = _newCost;
   }
 
-  function getAllSwapContracts() public view returns (TargetSwapInfo[] memory) {
+  function getAllSwapContracts()
+    external
+    view
+    returns (TargetSwapInfo[] memory)
+  {
     return targetSwapContracts;
   }
 
@@ -106,9 +111,10 @@ contract MTGYAtomicSwap is Ownable {
     address _sourceContract,
     address _targetContract,
     bool _isActive
-  ) public {
-    TargetSwapInfo storage swapContInd =
-      targetSwapContractsIndexed[_sourceContract];
+  ) external {
+    TargetSwapInfo storage swapContInd = targetSwapContractsIndexed[
+      _sourceContract
+    ];
     TargetSwapInfo storage swapCont = targetSwapContracts[swapContInd.index];
 
     require(
@@ -118,11 +124,12 @@ contract MTGYAtomicSwap is Ownable {
       'updateSwapContract must be contract creator'
     );
 
-    bytes32 _id =
-      sha256(abi.encodePacked(swapCont.creator, _createdBlockTimestamp));
+    bytes32 _id = sha256(
+      abi.encodePacked(swapCont.creator, _createdBlockTimestamp)
+    );
     require(
       swapCont.id == _id && swapContInd.id == _id,
-      "we don't recognize the info you send with the swap"
+      "we don't recognize the info you sent with the swap"
     );
 
     swapCont.targetContract = address(0) != _targetContract
@@ -139,7 +146,7 @@ contract MTGYAtomicSwap is Ownable {
     uint256 _maxSwapAmount,
     string memory _targetNetwork,
     address _targetContract
-  ) public payable returns (uint256, address) {
+  ) external payable returns (uint256, address) {
     require(
       msg.value >= swapCreationGasLoadAmount,
       'Going to ask the user to fill up the atomic swap contract with some gas'
@@ -148,32 +155,31 @@ contract MTGYAtomicSwap is Ownable {
     _mtgy.approve(address(_spend), mtgyServiceCost);
     _spend.spendOnProduct(mtgyServiceCost);
 
-    MTGYAtomicSwapInstance _contract =
-      new MTGYAtomicSwapInstance(
-        address(_mtgy),
-        address(_spend),
-        oracleAddress,
-        msg.sender,
-        _tokenAddy,
-        _maxSwapAmount
-      );
+    MTGYAtomicSwapInstance _contract = new MTGYAtomicSwapInstance(
+      address(_mtgy),
+      address(_spend),
+      oracleAddress,
+      msg.sender,
+      _tokenAddy,
+      _maxSwapAmount
+    );
     oracleAddress.transfer(msg.value);
     ERC20 _token = ERC20(_tokenAddy);
     _token.transferFrom(msg.sender, address(_contract), _tokenSupply);
     _contract.updateSupply();
+    _contract.transferOwnership(oracleAddress);
 
     uint256 _ts = block.timestamp;
-    TargetSwapInfo memory newContract =
-      TargetSwapInfo({
-        id: sha256(abi.encodePacked(msg.sender, _ts)),
-        timestamp: _ts,
-        index: targetSwapContracts.length,
-        creator: msg.sender,
-        sourceContract: address(_contract),
-        targetNetwork: _targetNetwork,
-        targetContract: _targetContract,
-        isActive: true
-      });
+    TargetSwapInfo memory newContract = TargetSwapInfo({
+      id: sha256(abi.encodePacked(msg.sender, _ts)),
+      timestamp: _ts,
+      index: targetSwapContracts.length,
+      creator: msg.sender,
+      sourceContract: address(_contract),
+      targetNetwork: _targetNetwork,
+      targetContract: _targetContract,
+      isActive: true
+    });
 
     targetSwapContracts.push(newContract);
     targetSwapContractsIndexed[address(_contract)] = newContract;
