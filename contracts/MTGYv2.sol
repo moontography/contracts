@@ -48,6 +48,11 @@ contract MTGYv2 is Context, IERC20, Ownable {
   IUniswapV2Router02 public uniswapV2Router;
   address public uniswapV2Pair;
 
+  // PancakeSwap: 0x10ED43C718714eb63d5aA57B78B54704E256024E
+  // Uniswap V2: 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+  address private _uniswapRouterAddress =
+    0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
   bool inSwapAndLiquify;
 
   bool tradingOpen = false;
@@ -68,10 +73,8 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function initContract() external onlyOwner {
-    // PancakeSwap: 0x10ED43C718714eb63d5aA57B78B54704E256024E
-    // Uniswap V2: 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
     IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
-      0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+      _uniswapRouterAddress
     );
     uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(
       address(this),
@@ -623,10 +626,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function _removeSniper(address account) external onlyOwner {
-    require(
-      account != 0x10ED43C718714eb63d5aA57B78B54704E256024E,
-      'We can not blacklist Uniswap'
-    );
+    require(account != _uniswapRouterAddress, 'We can not blacklist Uniswap');
     require(!_isSniper[account], 'Account is already blacklisted');
     _isSniper[account] = true;
     _confirmedSnipers.push(account);
