@@ -27,7 +27,6 @@ contract MTGYAtomicSwap is Ownable {
 
   uint256 public mtgyServiceCost = 25000 * 10**18;
   uint256 public swapCreationGasLoadAmount = 1 * 10**16; // 10 finney (0.01 ether)
-  address public creator;
   address payable public oracleAddress;
 
   // mapping with "0xSourceContractInstance" => targetContractInstanceInfo that
@@ -49,7 +48,6 @@ contract MTGYAtomicSwap is Ownable {
     address _mtgySpendAddress,
     address _oracleAddress
   ) {
-    creator = msg.sender;
     _mtgy = MTGY(_mtgyAddress);
     _spend = MTGYSpend(_mtgySpendAddress);
     oracleAddress = payable(_oracleAddress);
@@ -118,7 +116,7 @@ contract MTGYAtomicSwap is Ownable {
     TargetSwapInfo storage swapCont = targetSwapContracts[swapContInd.index];
 
     require(
-      msg.sender == creator ||
+      msg.sender == owner() ||
         msg.sender == swapCont.creator ||
         msg.sender == oracleAddress,
       'updateSwapContract must be contract creator'
