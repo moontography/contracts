@@ -17,6 +17,9 @@ const dotenvConfig = conf
 dotenvConfig({ path: resolve(__dirname, './.env') })
 
 const chainIds = {
+  bsc: 56,
+  kcc: 321,
+  polygon: 137,
   ganache: 1337,
   goerli: 5,
   hardhat: 31337,
@@ -41,8 +44,8 @@ if (!infuraApiKey) {
   throw new Error('Please set your INFURA_API_KEY in a .env file')
 }
 
-function createConfig(network) {
-  const url = `https://${network}.infura.io/v3/${infuraApiKey}`
+function createConfig(network, rpcUrl = null) {
+  const url = rpcUrl || `https://${network}.infura.io/v3/${infuraApiKey}`
   return {
     accounts: [privateKey],
     // accounts: {
@@ -51,7 +54,7 @@ function createConfig(network) {
     //   mnemonic,
     //   path: "m/44'/60'/0'/0",
     // },
-    chainId: chainIds[network],
+    chainId: chainIds[network] || 1,
     url,
   }
 }
@@ -60,6 +63,8 @@ const config = {
   defaultNetwork: 'hardhat',
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
+    // apiKey: process.env.BSCSCAN_API_KEY,
+    // apiKey: process.env.POLYGONSCAN_API_KEY,
   },
   gasReporter: {
     currency: 'USD',
@@ -75,6 +80,12 @@ const config = {
       },
       chainId: chainIds.hardhat,
     },
+    bsc: createConfig('bsc', 'https://bsc-dataseed.binance.org'),
+    kcc: createConfig('kcc', 'https://rpc-mainnet.kcc.network'),
+    polygon: createConfig(
+      'polygon',
+      'https://matic-mainnet.chainstacklabs.com'
+    ),
     mainnet: createConfig('mainnet'),
     goerli: createConfig('goerli'),
     kovan: createConfig('kovan'),
