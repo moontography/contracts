@@ -36,13 +36,13 @@ contract MTGYv2 is Context, IERC20, Ownable {
   string private _symbol = 'MTGYv2';
   uint8 private _decimals = 9;
 
-  uint256 public _taxFee;
+  uint256 public _taxFee = 0;
   uint256 private _previousTaxFee = _taxFee;
 
   uint256 public _liquidityFee = 2;
   uint256 private _previousLiquidityFee = _liquidityFee;
 
-  uint256 private _feeRate = 2;
+  uint256 private _maxPriceImpPerc = 2;
   uint256 launchTime;
 
   IUniswapV2Router02 public uniswapV2Router;
@@ -296,11 +296,12 @@ contract MTGYv2 is Context, IERC20, Ownable {
     if (!inSwapAndLiquify && tradingOpen && to == uniswapV2Pair) {
       if (contractTokenBalance > 0) {
         if (
-          contractTokenBalance > balanceOf(uniswapV2Pair).mul(_feeRate).div(100)
+          contractTokenBalance >
+          balanceOf(uniswapV2Pair).mul(_maxPriceImpPerc).div(100)
         ) {
-          contractTokenBalance = balanceOf(uniswapV2Pair).mul(_feeRate).div(
-            100
-          );
+          contractTokenBalance = balanceOf(uniswapV2Pair)
+            .mul(_maxPriceImpPerc)
+            .div(100);
         }
         swapTokens(contractTokenBalance);
       }
@@ -330,7 +331,9 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function sendETHToMarketing(uint256 amount) private {
-    marketingAddress.transfer(amount);
+    // marketingAddress.transfer(amount);
+    // Ignore the boolean return value. If it gets stuck, then retrieve via `emergencyWithdraw`.
+    marketingAddress.call{ value: amount }('');
   }
 
   function swapTokensForEth(uint256 tokenAmount) private {
@@ -618,7 +621,9 @@ contract MTGYv2 is Context, IERC20, Ownable {
   function transferToAddressETH(address payable recipient, uint256 amount)
     private
   {
-    recipient.transfer(amount);
+    // recipient.transfer(amount);
+    // Ignore the boolean return value. If it gets stuck, then retrieve via `emergencyWithdraw`.
+    recipient.call{ value: amount }('');
   }
 
   function isRemovedSniper(address account) public view returns (bool) {
@@ -644,8 +649,13 @@ contract MTGYv2 is Context, IERC20, Ownable {
     }
   }
 
-  function setFeeRate(uint256 rate) external onlyOwner {
-    _feeRate = rate;
+  function setMaxPriceImpPerc(uint256 rate) external onlyOwner {
+    _maxPriceImpPerc = rate;
+  }
+
+  // Withdraw ETH that gets stuck in contract by accident
+  function emergencyWithdraw() external onlyOwner {
+    payable(owner()).send(address(this).balance);
   }
 
   //to recieve ETH from uniswapV2Router when swaping
