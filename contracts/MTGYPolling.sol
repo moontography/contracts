@@ -34,7 +34,7 @@ contract MTGYPolling is Ownable {
     uint256 closesAt; // unix timestamp of when this poll will close
     bool isDeleted;
 
-    mapping(string => PollOption[]) pollOptions; // mapping of poll options
+    PollOption[] pollOptions; // array of poll options
   }
 
   // mapping of all polls owned by a user
@@ -125,7 +125,7 @@ contract MTGYPolling is Ownable {
     // Lopp over user polls to find specific poll
     for (uint256 _i = 0; _i < _userPolls.length; _i++) {
       if (_compareStr(_userPolls[_i].id, _id)) {
-        
+
         // Set specific poll as 'deleted'
         userPolls[msg.sender][_i].isDeleted = true;
         return true;
@@ -148,7 +148,7 @@ contract MTGYPolling is Ownable {
       if (_compareStr(_userPolls[_i].id, _pollId)) {
         
         // Push new poll options to specific poll
-        userPolls[msg.sender].pollOptions.push(
+        userPolls[msg.sender][_i].pollOptions.push(
           PollOption({
             id: _optionId,
             text: _optionText,
@@ -178,7 +178,7 @@ contract MTGYPolling is Ownable {
           if (_compareStr(_pollOptions[_j].id, _optionId)) {
 
             // Set poll option as 'deleted'
-            userPolls[msg.sender].pollOptions[_j].isDeleted = true;
+            userPolls[msg.sender][_i].pollOptions[_j].isDeleted = true;
             return true;
           }
         }
