@@ -19,19 +19,22 @@ contract MTGYPolling is Ownable {
   address public mtgySpendAddy;
   uint256 public mtgyServiceCost = 100 * 10**18;
 
+  // Poll options struct
+  struct PollOptionInfo {
+    string id;
+    string text; // poll option text
+    bool isDeleted;
+  }
+
+  // Poll struct
   struct PollInfo {
     string id;
     string text; // poll text
     uint256 createdAt; // unix timestamp of when this poll was created
     uint256 closesAt; // unix timestamp of when this poll will close
     bool isDeleted;
-  }
 
-  struct PollOptionInfo {
-    string id;
-    string pollId; // id of poll this option is tied to
-    string text; // poll option text
-    bool isDeleted;
+    mapping(string => PollOptionInfo) pollOptions; // map of poll options for a poll
   }
 
   // mapping of all polls owned by a user
@@ -71,10 +74,10 @@ contract MTGYPolling is Ownable {
     view
     returns (PollInfo memory)
   {
-    PollInfo[] memory _userInfo = userPolls[msg.sender];
-    for (uint256 _i = 0; _i < _userInfo.length; _i++) {
-      if (_compareStr(_userInfo[_i].id, _id)) {
-        return _userInfo[_i];
+    PollInfo[] memory _userPolls = userPolls[msg.sender];
+    for (uint256 _i = 0; _i < _userPolls.length; _i++) {
+      if (_compareStr(_userPolls[_i].id, _id)) {
+        return _userPolls[_i];
       }
     }
     return
@@ -83,14 +86,16 @@ contract MTGYPolling is Ownable {
         text: '',
         createdAt: 0,
         closesAt: 0,
-        isDeleted: false
+        isDeleted: false,
+        pollOptions: []
       });
   }
 
   function createPoll(
     string memory _id,
     string memory _text,
-    uint256 memory _closesAt
+    uint256 memory _closesAt,
+    PollOptionInfo memory _pollOptions
   ) external {
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
@@ -102,15 +107,16 @@ contract MTGYPolling is Ownable {
         text: _text,
         createdAt: block.timestamp,
         closesAt: _closesAt,
-        isDeleted: false
+        isDeleted: false,
+        pollOptions: _pollOptions
       })
     );
   }
 
   function deletePoll(string memory _id) external returns (bool) {
-    PollInfo[] memory _userInfo = userPolls[msg.sender];
-    for (uint256 _i = 0; _i < _userInfo.length; _i++) {
-      if (_compareStr(_userInfo[_i].id, _id)) {
+    PollInfo[] memory _userPolls = userPolls[msg.sender];
+    for (uint256 _i = 0; _i < _userPolls.length; _i++) {
+      if (_compareStr(_userPolls[_i].id, _id)) {
         userPolls[msg.sender][_i].isDeleted = true;
         return true;
       }
