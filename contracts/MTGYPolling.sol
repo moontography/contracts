@@ -68,7 +68,7 @@ contract MTGYPolling is Ownable {
     view
     returns (Poll[] memory)
   {
-    return Poll[_userAddy];
+    return userPolls[_userAddy];
   }
 
   function getPollById(string memory _id)
@@ -85,8 +85,7 @@ contract MTGYPolling is Ownable {
         return _userPolls[_i];
       }
     }
-
-    // If no poll found, return empty poll
+    
     return
       Poll({
         id: '',
@@ -94,28 +93,27 @@ contract MTGYPolling is Ownable {
         createdAt: 0,
         closesAt: 0,
         isDeleted: false,
-        pollOptions: []
+        pollOptions: new PollOption[](0)
       });
   }
 
   function createPoll(
     string memory _id,
     string memory _text,
-    uint256 memory _closesAt
+    uint256 _closesAt
   ) external {
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
     _mtgySpend.spendOnProduct(mtgyServiceCost);
-
-    userPolls[msg.sender].push(
-      Poll({
-        id: _id,
-        text: _text,
-        createdAt: block.timestamp,
-        closesAt: _closesAt,
-        isDeleted: false
-      })
-    );
+    
+    userPolls[msg.sender].push();
+    
+    uint256 newIndex = userPolls[msg.sender].length - 1;
+    userPolls[msg.sender][newIndex].id = _id;
+    userPolls[msg.sender][newIndex].text = _text;
+    userPolls[msg.sender][newIndex].createdAt = block.timestamp;
+    userPolls[msg.sender][newIndex].closesAt = _closesAt;
+    userPolls[msg.sender][newIndex].isDeleted = false;
   }
 
   function deletePoll(string memory _id) external returns (bool) {
@@ -171,7 +169,7 @@ contract MTGYPolling is Ownable {
       if (_compareStr(_userPolls[_i].id, _pollId)) {
         
         // Poll options
-        PollOptions[] memory _pollOptions = _userPolls[_i].pollOptions;
+        PollOption[] memory _pollOptions = _userPolls[_i].pollOptions;
         
         // Lopp over poll options to find specific poll option
         for (uint256 _j = 0; _j < _pollOptions.length; _j++) {
