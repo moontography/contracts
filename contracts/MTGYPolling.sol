@@ -30,9 +30,9 @@ contract MTGYPolling is Ownable {
   struct Poll {
     string id; // id for ref
     string text; // poll text
+    string status; // status of poll (open/closed/ect..)
     uint256 createdAt; // unix timestamp of when this poll was created
-    uint256 closesAt; // unix timestamp of when this poll will close
-    bool isDeleted;
+    bool isDeleted; 
 
     PollOption[] pollOptions; // array of poll options
   }
@@ -90,8 +90,8 @@ contract MTGYPolling is Ownable {
       Poll({
         id: '',
         text: '',
+        status: '',
         createdAt: 0,
-        closesAt: 0,
         isDeleted: false,
         pollOptions: new PollOption[](0)
       });
@@ -99,20 +99,19 @@ contract MTGYPolling is Ownable {
 
   function createPoll(
     string memory _id,
-    string memory _text,
-    uint256 _closesAt
+    string memory _text
   ) external {
-    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
-    _mtgySpend.spendOnProduct(mtgyServiceCost);
+    // _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
+    // _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
+    // _mtgySpend.spendOnProduct(mtgyServiceCost);
     
     userPolls[msg.sender].push();
     
     uint256 newIndex = userPolls[msg.sender].length - 1;
     userPolls[msg.sender][newIndex].id = _id;
     userPolls[msg.sender][newIndex].text = _text;
+    userPolls[msg.sender][newIndex].status = 'active';
     userPolls[msg.sender][newIndex].createdAt = block.timestamp;
-    userPolls[msg.sender][newIndex].closesAt = _closesAt;
     userPolls[msg.sender][newIndex].isDeleted = false;
   }
 
