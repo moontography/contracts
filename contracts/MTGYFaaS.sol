@@ -68,7 +68,8 @@ contract MTGYFaaS is Ownable {
     uint256 _supply,
     uint256 _perBlockAllocation,
     uint256 _lockedUntilDate,
-    uint256 _timelockSeconds
+    uint256 _timelockSeconds,
+    bool _isStakedNft
   ) external {
     // pay the MTGY fee for using MTGYFaaS
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
@@ -98,7 +99,8 @@ contract MTGYFaaS is Ownable {
       msg.sender,
       _perBlockAllocation,
       _lockedUntilDate,
-      _timelockSeconds
+      _timelockSeconds,
+      _isStakedNft
     );
     allFarmingContracts.push(address(_contract));
     tokensUpForStaking[_stakedTokenAddy].push(address(_contract));
