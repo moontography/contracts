@@ -133,19 +133,19 @@ contract KetherNFTLoaner is Ownable {
     return _loan.end > block.timestamp;
   }
 
-  function setLoanServiceCharge(uint256 _amountEth) external {
+  function setLoanServiceCharge(uint256 _amountEth) external onlyOwner {
     loanServiceCharge = _amountEth;
   }
 
-  function setMinimumLoanAmountPerDay(uint256 _amountEth) external {
+  function setMinimumLoanAmountPerDay(uint256 _amountEth) external onlyOwner {
     minLoanChargePerDay = _amountEth;
   }
 
-  function setMaxLoanDurationDays(uint256 _numDays) external {
+  function setMaxLoanDurationDays(uint256 _numDays) external onlyOwner {
     maxLoanDurationDays = _numDays;
   }
 
-  function setLoanPercentageCharge(uint256 _percentage) external {
+  function setLoanPercentageCharge(uint256 _percentage) external onlyOwner {
     loanPercentageCharge = _percentage;
   }
 
