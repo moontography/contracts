@@ -46,6 +46,7 @@ contract KetherNFTLoaner is Ownable {
     address loaner;
     uint256 start;
     uint256 end;
+    uint256 totalFee;
   }
 
   struct PublishParams {
@@ -69,7 +70,7 @@ contract KetherNFTLoaner is Ownable {
     uint256 overridePerDayCharge,
     uint256 overrideMaxLoanDays
   );
-  event RemovePlot(uint256 indexed idx);
+  event RemovePlot(uint256 indexed idx, address owner);
   event LoanPlot(uint256 indexed idx, address loaner);
   event Transfer(address to, uint256 idx);
 
@@ -115,18 +116,24 @@ contract KetherNFTLoaner is Ownable {
     emit UpdatePlot(_idx, _overridePerDayCharge, _overrideMaxDays);
   }
 
-  function removePlot(uint256 _idx) external {
+  function removePlot(uint256 _idx) external payable {
     address _owner = owners[_idx].owner;
     require(
       msg.sender == _owner,
       'You must be the original owner of the plot to remove it from the loan contract.'
     );
-    require(
-      !hasActiveLoan(_idx),
-      'There is currently an active loan on your plot that must expire before you can remove.'
-    );
+
+    // If there is an active loan, make sure the owner of the plot who's removing pays the loaner
+    // back a the full amount of the original loan fee for breaking the loan agreement
+    if (hasActiveLoan(_idx)) {
+      PlotLoan memory _loan = loans[_idx];
+      uint256 _loanFee = _loan.totalFee;
+      require(msg.value >= _loanFee, 'You need to reimburse the loaner for breaking the loan agreement early.');
+      payable(_loan.loaner).call{ value: _loanFee }('');
+    }
+
     _ketherNft.transferFrom(address(this), msg.sender, _idx);
-    emit RemovePlot(_idx);
+    emit RemovePlot(_idx, msg.sender);
   }
 
   function loanPlot(
@@ -154,7 +161,8 @@ contract KetherNFTLoaner is Ownable {
     loans[_idx] = PlotLoan({
       loaner: msg.sender,
       start: block.timestamp,
-      end: block.timestamp.add(_daysToSeconds(_numDays))
+      end: block.timestamp.add(_daysToSeconds(_numDays)),
+      totalFee: msg.value
     });
     _publish(_idx, _publishParams);
     emit LoanPlot(_idx, msg.sender);
