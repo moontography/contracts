@@ -64,12 +64,12 @@ contract KetherNFTLoaner is Ownable {
     uint256 indexed idx,
     address owner,
     uint256 overridePerDayCharge,
-    uint256 overrideMaxLoanDays
+    uint16 overrideMaxLoanDays
   );
   event UpdatePlot(
     uint256 indexed idx,
     uint256 overridePerDayCharge,
-    uint256 overrideMaxLoanDays
+    uint16 overrideMaxLoanDays
   );
   event RemovePlot(uint256 indexed idx, address owner);
   event LoanPlot(uint256 indexed idx, address loaner);
