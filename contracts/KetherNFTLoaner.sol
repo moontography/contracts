@@ -32,14 +32,15 @@ contract KetherNFTLoaner is Ownable {
   uint256 private constant _1ETH = 1 ether;
   uint256 public loanServiceCharge = _1ETH.div(100).mul(5);
   uint256 public loanChargePerDay = _1ETH.div(1000);
-  uint8 public maxLoanDurationDays = 30;
+  uint16 public maxLoanDurationDays = 30;
   uint8 public loanPercentageCharge = 10;
   IKetherNFT private _ketherNft;
 
   struct PlotOwner {
     address owner;
     uint256 overrideLoanChargePerDay;
-    uint8 overrideMaxLoanDurationDays;
+    uint16 overrideMaxLoanDurationDays;
+    uint256 totalFeesCollected;
   }
 
   struct PlotLoan {
@@ -81,7 +82,7 @@ contract KetherNFTLoaner is Ownable {
   function addPlot(
     uint256 _idx,
     uint256 _overridePerDayCharge,
-    uint8 _overrideMaxDays
+    uint16 _overrideMaxDays
   ) external payable {
     require(
       msg.sender == _ketherNft.ownerOf(_idx),
@@ -96,7 +97,8 @@ contract KetherNFTLoaner is Ownable {
     owners[_idx] = PlotOwner({
       owner: msg.sender,
       overrideLoanChargePerDay: _overridePerDayCharge,
-      overrideMaxLoanDurationDays: _overrideMaxDays
+      overrideMaxLoanDurationDays: _overrideMaxDays,
+      totalFeesCollected: 0
     });
     emit AddPlot(_idx, msg.sender, _overridePerDayCharge, _overrideMaxDays);
   }
@@ -104,7 +106,7 @@ contract KetherNFTLoaner is Ownable {
   function updatePlot(
     uint256 _idx,
     uint256 _overridePerDayCharge,
-    uint8 _overrideMaxDays
+    uint16 _overrideMaxDays
   ) external {
     PlotOwner storage _owner = owners[_idx];
     require(
@@ -128,7 +130,10 @@ contract KetherNFTLoaner is Ownable {
     if (hasActiveLoan(_idx)) {
       PlotLoan memory _loan = loans[_idx];
       uint256 _loanFee = _loan.totalFee;
-      require(msg.value >= _loanFee, 'You need to reimburse the loaner for breaking the loan agreement early.');
+      require(
+        msg.value >= _loanFee,
+        'You need to reimburse the loaner for breaking the loan agreement early.'
+      );
       payable(_loan.loaner).call{ value: _loanFee }('');
     }
 
@@ -138,12 +143,12 @@ contract KetherNFTLoaner is Ownable {
 
   function loanPlot(
     uint256 _idx,
-    uint8 _numDays,
+    uint16 _numDays,
     PublishParams memory _publishParams
   ) external payable {
     require(_numDays > 0, 'You must loan the plot for at least a day.');
 
-    PlotOwner memory _plotOwner = owners[_idx];
+    PlotOwner storage _plotOwner = owners[_idx];
     PlotLoan memory _loan = loans[_idx];
     require(_loan.end < block.timestamp, 'Plot is currently being loaned.');
 
@@ -158,6 +163,7 @@ contract KetherNFTLoaner is Ownable {
     payable(owner()).call{ value: _serviceCharge }('');
     payable(_plotOwner.owner).call{ value: _plotOwnerCharge }('');
 
+    _plotOwner.totalFeesCollected += _plotOwnerCharge;
     loans[_idx] = PlotLoan({
       loaner: msg.sender,
       start: block.timestamp,
@@ -214,7 +220,7 @@ contract KetherNFTLoaner is Ownable {
     loanChargePerDay = _amountWei;
   }
 
-  function setMaxLoanDurationDays(uint8 _numDays) external onlyOwner {
+  function setMaxLoanDurationDays(uint16 _numDays) external onlyOwner {
     maxLoanDurationDays = _numDays;
   }
 
@@ -227,11 +233,11 @@ contract KetherNFTLoaner is Ownable {
     return _days.mul(24).mul(60).mul(60);
   }
 
-  function _ensureValidLoanDays(PlotOwner memory _owner, uint8 _numDays)
+  function _ensureValidLoanDays(PlotOwner memory _owner, uint16 _numDays)
     private
     view
   {
-    uint8 _maxNumDays = _owner.overrideMaxLoanDurationDays > 0
+    uint16 _maxNumDays = _owner.overrideMaxLoanDurationDays > 0
       ? _owner.overrideMaxLoanDurationDays
       : maxLoanDurationDays;
     require(
@@ -240,7 +246,7 @@ contract KetherNFTLoaner is Ownable {
     );
   }
 
-  function _ensureValidLoanCharge(PlotOwner memory _owner, uint8 _numDays)
+  function _ensureValidLoanCharge(PlotOwner memory _owner, uint16 _numDays)
     private
     view
   {
