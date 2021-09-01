@@ -128,13 +128,14 @@ contract KetherNFTLoaner is Ownable {
     // If there is an active loan, make sure the owner of the plot who's removing pays the loaner
     // back a the full amount of the original loan fee for breaking the loan agreement
     if (hasActiveLoan(_idx)) {
-      PlotLoan memory _loan = loans[_idx];
+      PlotLoan storage _loan = loans[_idx];
       uint256 _loanFee = _loan.totalFee;
       require(
         msg.value >= _loanFee,
         'You need to reimburse the loaner for breaking the loan agreement early.'
       );
       payable(_loan.loaner).call{ value: _loanFee }('');
+      _loan.end = 0;
     }
 
     _ketherNft.transferFrom(address(this), msg.sender, _idx);
