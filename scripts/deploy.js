@@ -9,7 +9,10 @@ async function main() {
   // contract constructor arguments can be passed as parameters in #deploy
   // await Contract.deploy(arg1, arg2, ...)
   // TODO: make configurable through CLI params
-  const contract = await Contract.deploy()
+  const contract = await Contract.deploy(
+    '0xB0c227318439Aed30140e1E589a3c3b514d15BDF',
+    '0xD3d649fB54266EB65693b051539295493e79836F'
+  )
 
   console.log('Contract address:', contract.address)
 }

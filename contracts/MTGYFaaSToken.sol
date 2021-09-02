@@ -4,7 +4,6 @@ pragma solidity ^0.8.4;
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import './MTGYFaaS.sol';
 
 /**
  * @title MTGYFaaSToken (sMTGY)
@@ -15,7 +14,6 @@ contract MTGYFaaSToken is ERC20 {
   using SafeMath for uint256;
   bool public contractIsRemoved = false;
 
-  MTGYFaaS private _parentContract;
   ERC20 private _rewardsToken;
   ERC20 private _stakedERC20;
   ERC721 private _stakedERC721;
@@ -43,7 +41,7 @@ contract MTGYFaaSToken is ERC20 {
     uint256 timeOriginallyStaked; // unix timestamp in seconds that the user originally staked
     uint256 blockLastHarvested; // the block the user last claimed/harvested rewards
     uint256 rewardDebt; // Reward debt. See explanation below.
-    uint256 nftTokenId; // if this is an NFT staking pool, make sure we store the token ID here
+    uint256[] nftTokenIds; // if this is an NFT staking pool, make sure we store the token IDs here
   }
 
   struct BlockTokenTotal {
@@ -95,7 +93,6 @@ contract MTGYFaaSToken is ERC20 {
       'locked time must be after now or 0'
     );
 
-    _parentContract = MTGYFaaS(msg.sender);
     _rewardsToken = ERC20(_rewardsTokenAddy);
     if (_isStakedNft) {
       _stakedERC721 = ERC721(_stakedTokenAddy);
@@ -169,7 +166,7 @@ contract MTGYFaaSToken is ERC20 {
   //   lockedUntilDate = _newTime;
   // }
 
-  function stakeTokens(uint256 _amountOrTokenId) external {
+  function stakeTokens(uint256 _amount, uint256[] memory _tokenIds) external {
     require(
       getLastStakableBlock() > block.number,
       'this farm is expired and no more stakers can be added'
@@ -183,19 +180,18 @@ contract MTGYFaaSToken is ERC20 {
 
     uint256 _finalAmountTransferred;
     if (pool.isStakedNft) {
-      uint256 _contractBalanceBefore = _stakedERC721.balanceOf(address(this));
-      _stakedERC721.transferFrom(msg.sender, address(this), _amountOrTokenId);
+      require(
+        _tokenIds.length > 0,
+        "you need to provide NFT token IDs you're staking"
+      );
+      for (uint256 _i = 0; _i < _tokenIds.length; _i++) {
+        _stakedERC721.transferFrom(msg.sender, address(this), _tokenIds[_i]);
+      }
 
-      // in the event a token contract on transfer taxes, burns, etc. tokens
-      // the contract might not get the entire amount that the user originally
-      // transferred. Need to calculate from the previous contract balance
-      // so we know how many were actually transferred.
-      _finalAmountTransferred =
-        _stakedERC721.balanceOf(address(this)).sub(_contractBalanceBefore) *
-        10**decimals();
+      _finalAmountTransferred = _tokenIds.length;
     } else {
       uint256 _contractBalanceBefore = _stakedERC20.balanceOf(address(this));
-      _stakedERC20.transferFrom(msg.sender, address(this), _amountOrTokenId);
+      _stakedERC20.transferFrom(msg.sender, address(this), _amount);
 
       // in the event a token contract on transfer taxes, burns, etc. tokens
       // the contract might not get the entire amount that the user originally
@@ -211,17 +207,15 @@ contract MTGYFaaSToken is ERC20 {
       pool.lastRewardBlock = block.number;
     }
     _mint(msg.sender, _finalAmountTransferred);
-    stakers[msg.sender] = StakerInfo({
-      blockOriginallyStaked: block.number,
-      timeOriginallyStaked: block.timestamp,
-      blockLastHarvested: block.number,
-      rewardDebt: balanceOf(msg.sender).mul(pool.accERC20PerShare).div(1e36),
-      nftTokenId: pool.isStakedNft ? _amountOrTokenId : 0
-    });
-
-    _parentContract.addUserAsStaking(msg.sender);
-    if (!_parentContract.doesUserHaveContract(msg.sender, address(this))) {
-      _parentContract.addUserToContract(msg.sender, address(this));
+    StakerInfo storage _staker = stakers[msg.sender];
+    _staker.blockOriginallyStaked = block.number;
+    _staker.timeOriginallyStaked = block.timestamp;
+    _staker.blockLastHarvested = block.number;
+    _staker.rewardDebt = balanceOf(msg.sender).mul(pool.accERC20PerShare).div(
+      1e36
+    );
+    for (uint256 _i = 0; _i < _tokenIds.length; _i++) {
+      _staker.nftTokenIds.push(_tokenIds[_i]);
     }
     _updNumStaked(_finalAmountTransferred, 'add');
     emit Deposit(msg.sender, _finalAmountTransferred);
@@ -230,7 +224,6 @@ contract MTGYFaaSToken is ERC20 {
   // pass 'false' for shouldHarvest for emergency unstaking without claiming rewards
   function unstakeTokens(uint256 _amount, bool shouldHarvest) external {
     StakerInfo memory _staker = stakers[msg.sender];
-    uint256 _nftTokenId = _staker.nftTokenId;
     uint256 _userBalance = balanceOf(msg.sender);
     require(
       pool.isStakedNft ? true : _amount <= _userBalance,
@@ -261,7 +254,13 @@ contract MTGYFaaSToken is ERC20 {
       : _amount;
     transfer(_burner, _amountToRemoveFromStaked);
     if (pool.isStakedNft) {
-      _stakedERC721.safeTransferFrom(address(this), msg.sender, _nftTokenId);
+      for (uint256 _i = 0; _i < _staker.nftTokenIds.length; _i++) {
+        _stakedERC721.transferFrom(
+          address(this),
+          msg.sender,
+          _staker.nftTokenIds[_i]
+        );
+      }
     } else {
       require(
         _stakedERC20.transfer(msg.sender, _amountToRemoveFromStaked),
@@ -270,8 +269,6 @@ contract MTGYFaaSToken is ERC20 {
     }
 
     if (balanceOf(msg.sender) <= 0) {
-      _parentContract.removeUserAsStaking(msg.sender);
-      _parentContract.removeContractFromUser(msg.sender, address(this));
       delete stakers[msg.sender];
     }
     _updNumStaked(_amountToRemoveFromStaked, 'remove');
@@ -281,7 +278,6 @@ contract MTGYFaaSToken is ERC20 {
   function emergencyUnstake() external {
     StakerInfo memory _staker = stakers[msg.sender];
     uint256 _amountToRemoveFromStaked = balanceOf(msg.sender);
-    uint256 _userNftTokenId = _staker.nftTokenId;
     require(
       _amountToRemoveFromStaked > 0,
       'user can only unstake if they have tokens in the pool'
@@ -289,11 +285,13 @@ contract MTGYFaaSToken is ERC20 {
 
     transfer(_burner, _amountToRemoveFromStaked);
     if (pool.isStakedNft) {
-      _stakedERC721.safeTransferFrom(
-        address(this),
-        msg.sender,
-        _userNftTokenId
-      );
+      for (uint256 _i = 0; _i < _staker.nftTokenIds.length; _i++) {
+        _stakedERC721.transferFrom(
+          address(this),
+          msg.sender,
+          _staker.nftTokenIds[_i]
+        );
+      }
     } else {
       require(
         _stakedERC20.transfer(msg.sender, _amountToRemoveFromStaked),
@@ -301,11 +299,9 @@ contract MTGYFaaSToken is ERC20 {
       );
     }
 
-    _parentContract.removeUserAsStaking(msg.sender);
-    _parentContract.removeContractFromUser(msg.sender, address(this));
     delete stakers[msg.sender];
     _updNumStaked(_amountToRemoveFromStaked, 'remove');
-    emit Withdraw(msg.sender, _userNftTokenId);
+    emit Withdraw(msg.sender, _amountToRemoveFromStaked);
   }
 
   function harvestForUser(address _userAddy) public returns (uint256) {
