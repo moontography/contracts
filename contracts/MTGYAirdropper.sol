@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import './MTGYSpend.sol';
 
 /**
@@ -19,7 +20,7 @@ contract MTGYAirdropper is Ownable {
 
   struct Receiver {
     address userAddress;
-    uint256 amountToReceive;
+    uint256 amountOrTokenId;
   }
 
   constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
@@ -54,7 +55,7 @@ contract MTGYAirdropper is Ownable {
 
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
       Receiver memory _user = _addressesAndAmounts[_i];
-      (bool sent, ) = _user.userAddress.call{ value: _user.amountToReceive }(
+      (bool sent, ) = _user.userAddress.call{ value: _user.amountOrTokenId }(
         ''
       );
       _wasSent = _wasSent == false ? false : sent;
@@ -71,7 +72,21 @@ contract MTGYAirdropper is Ownable {
     ERC20 _token = ERC20(_tokenAddress);
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
       Receiver memory _user = _addressesAndAmounts[_i];
-      _token.transferFrom(msg.sender, _user.userAddress, _user.amountToReceive);
+      _token.transferFrom(msg.sender, _user.userAddress, _user.amountOrTokenId);
+    }
+    return true;
+  }
+
+  function bulkSendErc721Tokens(
+    address _tokenAddress,
+    Receiver[] memory _addressesAndAmounts
+  ) external returns (bool) {
+    _payForService();
+
+    ERC721 _token = ERC721(_tokenAddress);
+    for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
+      Receiver memory _user = _addressesAndAmounts[_i];
+      _token.transferFrom(msg.sender, _user.userAddress, _user.amountOrTokenId);
     }
     return true;
   }
