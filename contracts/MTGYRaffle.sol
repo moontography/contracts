@@ -14,13 +14,13 @@ import './MTGYSpend.sol';
 contract MTGYRaffle is Ownable {
   struct Raffle {
     address owner;
-    bool isNft; // ERC20 or ERC721
+    bool isNft; // rewardToken is either ERC20 or ERC721
     address rewardToken;
     uint256 rewardAmountOrTokenId;
-    uint256 start;
-    uint256 end;
-    address entryToken;
-    uint256 entryFee;
+    uint256 start; // timestamp (uint256) of start time (0 if start when raffle is created)
+    uint256 end; // timestamp (uint256) of end time (0 if can be entered until owner draws)
+    address entryToken; // ERC20 token requiring user to send to enter
+    uint256 entryFee; // ERC20 num tokens user must send to enter, or 0 if no entry fee
     uint256 entryFeesCollected;
     address[] entries;
     address winner;
@@ -98,7 +98,11 @@ contract MTGYRaffle is Ownable {
     Raffle storage _raffle = raffles[_id];
     require(
       _raffle.owner == msg.sender,
-      'Must be the raffle owner to draw winner'
+      'Must be the raffle owner to draw winner.'
+    );
+    require(
+      !_raffle.isComplete,
+      'Raffle has already been drawn and completed.'
     );
 
     if (_raffle.entryFeesCollected > 0) {
@@ -135,7 +139,7 @@ contract MTGYRaffle is Ownable {
       'It must be after the start time to enter the raffle.'
     );
     require(
-      _raffle.end >= block.timestamp,
+      _raffle.end == 0 || _raffle.end >= block.timestamp,
       'It must be before the end time to enter the raffle.'
     );
     require(!_raffle.isComplete, 'Faffle cannot be complete to be entered.');
@@ -162,7 +166,11 @@ contract MTGYRaffle is Ownable {
     Raffle storage _raffle = raffles[_id];
     require(
       _raffle.owner == msg.sender,
-      'Must be the raffle owner to change owner'
+      'Must be the raffle owner to change owner.'
+    );
+    require(
+      !_raffle.isComplete,
+      'Raffle has already been drawn and completed.'
     );
 
     _raffle.owner = _newOwner;
