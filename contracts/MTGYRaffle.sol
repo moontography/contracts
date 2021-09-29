@@ -2,9 +2,8 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
-import './MTGY.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
+import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import './MTGYSpend.sol';
 
 /**
@@ -27,7 +26,7 @@ contract MTGYRaffle is Ownable {
     bool isComplete;
   }
 
-  MTGY private _mtgy;
+  IERC20 private _mtgy;
   MTGYSpend private _spend;
 
   uint256 public mtgyServiceCost = 5000 * 10**18;
@@ -41,7 +40,7 @@ contract MTGYRaffle is Ownable {
   event DrawWinner(bytes32 id, address winner);
 
   constructor(address _mtgyAddress, address _mtgySpendAddress) {
-    _mtgy = MTGY(_mtgyAddress);
+    _mtgy = IERC20(_mtgyAddress);
     _spend = MTGYSpend(_mtgySpendAddress);
   }
 
@@ -59,14 +58,14 @@ contract MTGYRaffle is Ownable {
     _spend.spendOnProduct(mtgyServiceCost);
 
     if (_isNft) {
-      ERC721 _rewardToken = ERC721(_rewardTokenAddress);
+      IERC721 _rewardToken = IERC721(_rewardTokenAddress);
       _rewardToken.transferFrom(
         msg.sender,
         address(this),
         _rewardAmountOrTokenId
       );
     } else {
-      ERC20 _rewardToken = ERC20(_rewardTokenAddress);
+      IERC20 _rewardToken = IERC20(_rewardTokenAddress);
       _rewardToken.transferFrom(
         msg.sender,
         address(this),
@@ -106,7 +105,7 @@ contract MTGYRaffle is Ownable {
     );
 
     if (_raffle.entryFeesCollected > 0) {
-      ERC20 _entryToken = ERC20(_raffle.entryToken);
+      IERC20 _entryToken = IERC20(_raffle.entryToken);
       _entryToken.transfer(_raffle.owner, _raffle.entryFeesCollected);
     }
 
@@ -116,14 +115,14 @@ contract MTGYRaffle is Ownable {
     _raffle.winner = _winner;
 
     if (_raffle.isNft) {
-      ERC721 _rewardToken = ERC721(_raffle.rewardToken);
+      IERC721 _rewardToken = IERC721(_raffle.rewardToken);
       _rewardToken.transferFrom(
         address(this),
         _winner,
         _raffle.rewardAmountOrTokenId
       );
     } else {
-      ERC20 _rewardToken = ERC20(_raffle.rewardToken);
+      IERC20 _rewardToken = IERC20(_raffle.rewardToken);
       _rewardToken.transfer(_winner, _raffle.rewardAmountOrTokenId);
     }
 
@@ -145,7 +144,7 @@ contract MTGYRaffle is Ownable {
     require(!_raffle.isComplete, 'Faffle cannot be complete to be entered.');
 
     if (_raffle.entryFee > 0) {
-      ERC20 _entryToken = ERC20(_raffle.entryToken);
+      IERC20 _entryToken = IERC20(_raffle.entryToken);
       _entryToken.transferFrom(msg.sender, address(this), _raffle.entryFee);
 
       uint256 _feeForRaffle = _raffle.entryFee;
@@ -177,7 +176,7 @@ contract MTGYRaffle is Ownable {
   }
 
   function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
-    _mtgy = MTGY(_tokenAddy);
+    _mtgy = IERC20(_tokenAddy);
   }
 
   function changeSpendAddress(address _spendAddress) external onlyOwner {
