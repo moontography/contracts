@@ -25,6 +25,7 @@ contract MTGYRaffle is Ownable {
     address[] entries;
     address winner;
     bool isComplete;
+    bool isClosed;
   }
 
   IERC20 private _mtgy;
@@ -40,6 +41,7 @@ contract MTGYRaffle is Ownable {
   event CreateRaffle(address indexed creator, bytes32 id);
   event EnterRaffle(address indexed raffler, bytes32 id);
   event DrawWinner(bytes32 id, address winner);
+  event CloseRaffle(bytes32 id);
 
   constructor(address _mtgyAddress, address _mtgySpendAddress) {
     _mtgy = IERC20(_mtgyAddress);
@@ -91,7 +93,8 @@ contract MTGYRaffle is Ownable {
       maxEntriesPerAddress: _maxEntriesPerAddress, // 0 means no maximum (can enter as much as they'd like)
       entries: _entries,
       winner: address(0),
-      isComplete: false
+      isComplete: false,
+      isClosed: false
     });
     raffleIds.push(_id);
     emit CreateRaffle(msg.sender, _id);
@@ -151,6 +154,32 @@ contract MTGYRaffle is Ownable {
       _raffle.owner == msg.sender,
       'Must be the raffle owner to draw winner.'
     );
+    require(
+      !_raffle.isComplete,
+      'Raffle cannot be closed if it is completed already.'
+    );
+
+    IERC20 _entryToken = IERC20(_raffle.entryToken);
+    for (uint256 _i = 0; _i < _raffle.entries.length; _i++) {
+      address _user = _raffle.entries[_i];
+      _entryToken.transfer(_user, _raffle.entryFee);
+    }
+
+    if (_raffle.isNft) {
+      IERC721 _rewardToken = IERC721(_raffle.rewardToken);
+      _rewardToken.transferFrom(
+        address(this),
+        msg.sender,
+        _raffle.rewardAmountOrTokenId
+      );
+    } else {
+      IERC20 _rewardToken = IERC20(_raffle.rewardToken);
+      _rewardToken.transfer(msg.sender, _raffle.rewardAmountOrTokenId);
+    }
+
+    _raffle.isComplete = true;
+    _raffle.isClosed = true;
+    emit CloseRaffle(_id);
   }
 
   function enterRaffle(bytes32 _id) external {
@@ -169,7 +198,7 @@ contract MTGYRaffle is Ownable {
         _entriesIndexed[_id][msg.sender] < _raffle.maxEntriesPerAddress,
       'You have entered the maximum number of times you are allowed.'
     );
-    require(!_raffle.isComplete, 'Faffle cannot be complete to be entered.');
+    require(!_raffle.isComplete, 'Raffle cannot be complete to be entered.');
 
     if (_raffle.entryFee > 0) {
       IERC20 _entryToken = IERC20(_raffle.entryToken);
