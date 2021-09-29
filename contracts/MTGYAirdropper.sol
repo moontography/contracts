@@ -2,15 +2,16 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
+import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import './MTGYSpend.sol';
 
 /**
  * @title MTGYAirdropper
- * @dev Allows sending an ERC20 token to multiple addresses in different amounts
+ * @dev Allows sending ERC20 or ERC721 tokens to multiple addresses
  */
 contract MTGYAirdropper is Ownable {
-  ERC20 private _mtgy;
+  IERC20 private _mtgy;
   MTGYSpend private _mtgySpend;
 
   address public mtgyTokenAddy;
@@ -19,19 +20,19 @@ contract MTGYAirdropper is Ownable {
 
   struct Receiver {
     address userAddress;
-    uint256 amountToReceive;
+    uint256 amountOrTokenId;
   }
 
   constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
     mtgyTokenAddy = _mtgyTokenAddy;
     mtgySpendAddy = _mtgySpendAddy;
-    _mtgy = ERC20(_mtgyTokenAddy);
+    _mtgy = IERC20(_mtgyTokenAddy);
     _mtgySpend = MTGYSpend(_mtgySpendAddy);
   }
 
   function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
     mtgyTokenAddy = _tokenAddy;
-    _mtgy = ERC20(_tokenAddy);
+    _mtgy = IERC20(_tokenAddy);
   }
 
   function changeMtgySpendAddy(address _spendAddy) external onlyOwner {
@@ -54,7 +55,7 @@ contract MTGYAirdropper is Ownable {
 
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
       Receiver memory _user = _addressesAndAmounts[_i];
-      (bool sent, ) = _user.userAddress.call{ value: _user.amountToReceive }(
+      (bool sent, ) = _user.userAddress.call{ value: _user.amountOrTokenId }(
         ''
       );
       _wasSent = _wasSent == false ? false : sent;
@@ -68,10 +69,24 @@ contract MTGYAirdropper is Ownable {
   ) external returns (bool) {
     _payForService();
 
-    ERC20 _token = ERC20(_tokenAddress);
+    IERC20 _token = IERC20(_tokenAddress);
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
       Receiver memory _user = _addressesAndAmounts[_i];
-      _token.transferFrom(msg.sender, _user.userAddress, _user.amountToReceive);
+      _token.transferFrom(msg.sender, _user.userAddress, _user.amountOrTokenId);
+    }
+    return true;
+  }
+
+  function bulkSendErc721Tokens(
+    address _tokenAddress,
+    Receiver[] memory _addressesAndAmounts
+  ) external returns (bool) {
+    _payForService();
+
+    IERC721 _token = IERC721(_tokenAddress);
+    for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
+      Receiver memory _user = _addressesAndAmounts[_i];
+      _token.transferFrom(msg.sender, _user.userAddress, _user.amountOrTokenId);
     }
     return true;
   }
