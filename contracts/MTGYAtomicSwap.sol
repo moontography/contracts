@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import './MTGY.sol';
 import './MTGYSpend.sol';
 import './MTGYAtomicSwapInstance.sol';
 
@@ -22,7 +22,7 @@ contract MTGYAtomicSwap is Ownable {
     bool isActive;
   }
 
-  MTGY private _mtgy;
+  IERC20 private _mtgy;
   MTGYSpend private _spend;
 
   uint256 public mtgyServiceCost = 25000 * 10**18;
@@ -48,7 +48,7 @@ contract MTGYAtomicSwap is Ownable {
     address _mtgySpendAddress,
     address _oracleAddress
   ) {
-    _mtgy = MTGY(_mtgyAddress);
+    _mtgy = IERC20(_mtgyAddress);
     _spend = MTGYSpend(_mtgySpendAddress);
     oracleAddress = payable(_oracleAddress);
   }
@@ -81,7 +81,7 @@ contract MTGYAtomicSwap is Ownable {
   }
 
   function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
-    _mtgy = MTGY(_tokenAddy);
+    _mtgy = IERC20(_tokenAddy);
   }
 
   function changeSpendAddress(address _spendAddress) external onlyOwner {
@@ -162,7 +162,7 @@ contract MTGYAtomicSwap is Ownable {
       _maxSwapAmount
     );
     oracleAddress.transfer(msg.value);
-    ERC20 _token = ERC20(_tokenAddy);
+    IERC20 _token = IERC20(_tokenAddy);
     _token.transferFrom(msg.sender, address(_contract), _tokenSupply);
     _contract.updateSupply();
     _contract.transferOwnership(oracleAddress);
