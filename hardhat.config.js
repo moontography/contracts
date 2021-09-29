@@ -81,6 +81,10 @@ const config = {
       chainId: chainIds.hardhat,
     },
     bsc: createConfig('bsc', 'https://bsc-dataseed.binance.org'),
+    bsctest: createConfig(
+      'bsctest',
+      'https://data-seed-prebsc-1-s1.binance.org:8545'
+    ),
     kcc: createConfig('kcc', 'https://rpc-mainnet.kcc.network'),
     polygon: createConfig(
       'polygon',
