@@ -21,6 +21,7 @@ contract MTGYRaffle is Ownable {
     address entryToken; // ERC20 token requiring user to send to enter
     uint256 entryFee; // ERC20 num tokens user must send to enter, or 0 if no entry fee
     uint256 entryFeesCollected;
+    uint256 maxEntriesPerAddress;
     address[] entries;
     address winner;
     bool isComplete;
@@ -34,6 +35,7 @@ contract MTGYRaffle is Ownable {
 
   mapping(bytes32 => Raffle) public raffles;
   bytes32[] public raffleIds;
+  mapping(bytes32 => mapping(address => uint256)) private _entriesIndexed;
 
   event CreateRaffle(address indexed creator, bytes32 id);
   event EnterRaffle(address indexed raffler, bytes32 id);
@@ -51,7 +53,8 @@ contract MTGYRaffle is Ownable {
     uint256 _start,
     uint256 _end,
     address _entryToken,
-    uint256 _entryFee
+    uint256 _entryFee,
+    uint256 _maxEntriesPerAddress
   ) external {
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(address(_spend), mtgyServiceCost);
@@ -85,6 +88,7 @@ contract MTGYRaffle is Ownable {
       entryToken: _entryToken,
       entryFee: _entryFee,
       entryFeesCollected: 0,
+      maxEntriesPerAddress: _maxEntriesPerAddress, // 0 means no maximum (can enter as much as they'd like)
       entries: _entries,
       winner: address(0),
       isComplete: false
@@ -100,13 +104,24 @@ contract MTGYRaffle is Ownable {
       'Must be the raffle owner to draw winner.'
     );
     require(
+      block.timestamp > _raffle.end,
+      'Raffle entry period is not over yet.'
+    );
+    require(
       !_raffle.isComplete,
       'Raffle has already been drawn and completed.'
     );
 
     if (_raffle.entryFeesCollected > 0) {
       IERC20 _entryToken = IERC20(_raffle.entryToken);
-      _entryToken.transfer(_raffle.owner, _raffle.entryFeesCollected);
+      uint256 _feesToSendOwner = _raffle.entryFeesCollected;
+      if (entryFeePercentageCharge > 0) {
+        uint256 _feeChargeAmount = (_feesToSendOwner *
+          entryFeePercentageCharge) / 100;
+        _entryToken.transfer(owner(), _feeChargeAmount);
+        _feesToSendOwner -= _feeChargeAmount;
+      }
+      _entryToken.transfer(_raffle.owner, _feesToSendOwner);
     }
 
     uint256 _winnerIdx = _random(_raffle.entries.length) %
@@ -130,6 +145,14 @@ contract MTGYRaffle is Ownable {
     emit DrawWinner(_id, _winner);
   }
 
+  function closeRaffleAndRefund(bytes32 _id) external {
+    Raffle storage _raffle = raffles[_id];
+    require(
+      _raffle.owner == msg.sender,
+      'Must be the raffle owner to draw winner.'
+    );
+  }
+
   function enterRaffle(bytes32 _id) external {
     Raffle storage _raffle = raffles[_id];
     require(_raffle.owner != address(0), 'We do not recognize this raffle.');
@@ -141,23 +164,21 @@ contract MTGYRaffle is Ownable {
       _raffle.end == 0 || _raffle.end >= block.timestamp,
       'It must be before the end time to enter the raffle.'
     );
+    require(
+      _raffle.maxEntriesPerAddress == 0 ||
+        _entriesIndexed[_id][msg.sender] < _raffle.maxEntriesPerAddress,
+      'You have entered the maximum number of times you are allowed.'
+    );
     require(!_raffle.isComplete, 'Faffle cannot be complete to be entered.');
 
     if (_raffle.entryFee > 0) {
       IERC20 _entryToken = IERC20(_raffle.entryToken);
       _entryToken.transferFrom(msg.sender, address(this), _raffle.entryFee);
-
-      uint256 _feeForRaffle = _raffle.entryFee;
-      if (entryFeePercentageCharge > 0) {
-        uint256 _feeChargeAmount = (_feeForRaffle * entryFeePercentageCharge) /
-          100;
-        _entryToken.transfer(owner(), _feeChargeAmount);
-        _feeForRaffle -= _feeChargeAmount;
-      }
-      _raffle.entryFeesCollected += _feeForRaffle;
+      _raffle.entryFeesCollected += _raffle.entryFee;
     }
 
     _raffle.entries.push(msg.sender);
+    _entriesIndexed[_id][msg.sender] += 1;
     emit EnterRaffle(msg.sender, _id);
   }
 
