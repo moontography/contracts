@@ -25,11 +25,6 @@ contract MTGYFaaS is Ownable {
   address[] public allFarmingContracts;
   uint256 public totalStakingContracts;
 
-  // mapping of userAddress => contractAddress[] that provides all the
-  // user's sMTGY contracts they're staking tokens with
-  mapping(address => address[]) public userStakes;
-  address[] public allUsersStaking;
-
   /**
    * @notice The constructor for the staking master contract.
    */
@@ -50,14 +45,6 @@ contract MTGYFaaS is Ownable {
     return tokensUpForStaking[_tokenAddress];
   }
 
-  function getUserStakingContracts(address _userAddress)
-    external
-    view
-    returns (address[] memory)
-  {
-    return userStakes[_userAddress];
-  }
-
   function changeServiceCost(uint256 newCost) external onlyOwner {
     mtgyServiceCost = newCost;
   }
@@ -68,7 +55,8 @@ contract MTGYFaaS is Ownable {
     uint256 _supply,
     uint256 _perBlockAllocation,
     uint256 _lockedUntilDate,
-    uint256 _timelockSeconds
+    uint256 _timelockSeconds,
+    bool _isStakedNft
   ) external {
     // pay the MTGY fee for using MTGYFaaS
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
@@ -98,7 +86,8 @@ contract MTGYFaaS is Ownable {
       msg.sender,
       _perBlockAllocation,
       _lockedUntilDate,
-      _timelockSeconds
+      _timelockSeconds,
+      _isStakedNft
     );
     allFarmingContracts.push(address(_contract));
     tokensUpForStaking[_stakedTokenAddy].push(address(_contract));
@@ -129,75 +118,7 @@ contract MTGYFaaS is Ownable {
       'it must be after the locked time the user originally configured and not locked forever'
     );
 
-    for (uint256 _i = 0; _i < allUsersStaking.length; _i++) {
-      _contract.harvestForUser(allUsersStaking[_i]);
-    }
     _contract.removeStakeableTokens();
     totalStakingContracts--;
-  }
-
-  function userInd(address _addy) public view returns (int256) {
-    for (uint256 _i = 0; _i < allUsersStaking.length; _i++) {
-      if (allUsersStaking[_i] == _addy) {
-        return int256(_i);
-      }
-    }
-    return -1;
-  }
-
-  function addUserAsStaking(address _addy) external {
-    int256 ind = userInd(_addy);
-    if (ind == -1) {
-      allUsersStaking.push(_addy);
-    }
-  }
-
-  function removeUserAsStaking(address _addy) external {
-    int256 ind = userInd(_addy);
-    if (ind > -1) {
-      uint256 sind = uint256(ind);
-      delete allUsersStaking[sind];
-    }
-  }
-
-  function doesUserHaveContract(address _userAddress, address _stakingContract)
-    external
-    view
-    returns (bool)
-  {
-    for (uint256 _i = 0; _i < userStakes[_userAddress].length; _i++) {
-      if (userStakes[_userAddress][_i] == _stakingContract) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function addUserToContract(address _userAddress, address _stakingContract)
-    external
-  {
-    require(
-      msg.sender == _stakingContract,
-      'addUserToContract calling address must be staking contract'
-    );
-    MTGYFaaSToken _contract = MTGYFaaSToken(_stakingContract);
-    require(_contract.balanceOf(_userAddress) > 0);
-    userStakes[_userAddress].push(_stakingContract);
-  }
-
-  function removeContractFromUser(address _userAddress, address _stakingAddy)
-    external
-  {
-    require(
-      msg.sender == _stakingAddy,
-      'removeContractFromUser calling address must be staking contract'
-    );
-    MTGYFaaSToken _contract = MTGYFaaSToken(_stakingAddy);
-    require(_contract.balanceOf(_userAddress) == 0);
-    for (uint256 _i = 0; _i < userStakes[_userAddress].length; _i++) {
-      if (userStakes[_userAddress][_i] == _stakingAddy) {
-        delete userStakes[_userAddress][_i];
-      }
-    }
   }
 }
