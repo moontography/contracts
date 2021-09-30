@@ -20,8 +20,8 @@ contract MTGYRaffle is Ownable {
     uint256 end; // timestamp (uint256) of end time (0 if can be entered until owner draws)
     address entryToken; // ERC20 token requiring user to send to enter
     uint256 entryFee; // ERC20 num tokens user must send to enter, or 0 if no entry fee
-    uint256 entryFeesCollected;
-    uint256 maxEntriesPerAddress;
+    uint256 entryFeesCollected; // amount of fees collected by entries and paid to raffle/lottery owner
+    uint256 maxEntriesPerAddress; // 0 means unlimited entries
     address[] entries;
     address winner;
     bool isComplete;
@@ -32,16 +32,16 @@ contract MTGYRaffle is Ownable {
   MTGYSpend private _spend;
 
   uint256 public mtgyServiceCost = 5000 * 10**18;
-  uint256 public entryFeePercentageCharge = 1;
+  uint256 public entryFeePercentageCharge = 3;
 
   mapping(bytes32 => Raffle) public raffles;
   bytes32[] public raffleIds;
   mapping(bytes32 => mapping(address => uint256)) private _entriesIndexed;
 
   event CreateRaffle(address indexed creator, bytes32 id);
-  event EnterRaffle(address indexed raffler, bytes32 id);
-  event DrawWinner(bytes32 id, address winner);
-  event CloseRaffle(bytes32 id);
+  event EnterRaffle(bytes32 indexed id, address raffler);
+  event DrawWinner(bytes32 indexed id, address winner);
+  event CloseRaffle(bytes32 indexed id);
 
   constructor(address _mtgyAddress, address _mtgySpendAddress) {
     _mtgy = IERC20(_mtgyAddress);
@@ -107,7 +107,7 @@ contract MTGYRaffle is Ownable {
       'Must be the raffle owner to draw winner.'
     );
     require(
-      block.timestamp > _raffle.end,
+      _raffle.end == 0 || block.timestamp > _raffle.end,
       'Raffle entry period is not over yet.'
     );
     require(
@@ -208,7 +208,7 @@ contract MTGYRaffle is Ownable {
 
     _raffle.entries.push(msg.sender);
     _entriesIndexed[_id][msg.sender] += 1;
-    emit EnterRaffle(msg.sender, _id);
+    emit EnterRaffle(_id, msg.sender);
   }
 
   function changeRaffleOwner(bytes32 _id, address _newOwner) external {
