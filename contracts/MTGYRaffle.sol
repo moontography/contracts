@@ -32,7 +32,7 @@ contract MTGYRaffle is Ownable {
   MTGYSpend private _spend;
 
   uint256 public mtgyServiceCost = 5000 * 10**18;
-  uint256 public entryFeePercentageCharge = 3;
+  uint8 public entryFeePercentageCharge = 2;
 
   mapping(bytes32 => Raffle) public raffles;
   bytes32[] public raffleIds;
@@ -239,6 +239,17 @@ contract MTGYRaffle is Ownable {
 
   function changeMtgyServiceCost(uint256 _newCost) external onlyOwner {
     mtgyServiceCost = _newCost;
+  }
+
+  function changeEntryFeePercentageCharge(uint8 _newPercentage)
+    external
+    onlyOwner
+  {
+    require(
+      _newPercentage >= 0 && _newPercentage < 100,
+      'Should be between 0 and 100.'
+    );
+    entryFeePercentageCharge = _newPercentage;
   }
 
   function _random(uint256 _entries) private view returns (uint256) {
