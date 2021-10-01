@@ -48,6 +48,10 @@ contract MTGYRaffle is Ownable {
     _spend = MTGYSpend(_mtgySpendAddress);
   }
 
+  function getAllRaffles() external view returns (bytes32[] memory) {
+    return raffleIds;
+  }
+
   function createRaffle(
     address _rewardTokenAddress,
     uint256 _rewardAmountOrTokenId,
