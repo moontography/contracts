@@ -36,7 +36,7 @@ contract MTGYRaffle is Ownable {
 
   mapping(bytes32 => Raffle) public raffles;
   bytes32[] public raffleIds;
-  mapping(bytes32 => mapping(address => uint256)) private _entriesIndexed;
+  mapping(bytes32 => mapping(address => uint256)) public entriesIndexed;
 
   event CreateRaffle(address indexed creator, bytes32 id);
   event EnterRaffle(bytes32 indexed id, address raffler);
@@ -50,6 +50,14 @@ contract MTGYRaffle is Ownable {
 
   function getAllRaffles() external view returns (bytes32[] memory) {
     return raffleIds;
+  }
+
+  function getRaffleEntries(bytes32 _id)
+    external
+    view
+    returns (address[] memory)
+  {
+    return raffles[_id].entries;
   }
 
   function createRaffle(
@@ -199,7 +207,7 @@ contract MTGYRaffle is Ownable {
     );
     require(
       _raffle.maxEntriesPerAddress == 0 ||
-        _entriesIndexed[_id][msg.sender] < _raffle.maxEntriesPerAddress,
+        entriesIndexed[_id][msg.sender] < _raffle.maxEntriesPerAddress,
       'You have entered the maximum number of times you are allowed.'
     );
     require(!_raffle.isComplete, 'Raffle cannot be complete to be entered.');
@@ -211,7 +219,7 @@ contract MTGYRaffle is Ownable {
     }
 
     _raffle.entries.push(msg.sender);
-    _entriesIndexed[_id][msg.sender] += 1;
+    entriesIndexed[_id][msg.sender] += 1;
     emit EnterRaffle(_id, msg.sender);
   }
 
