@@ -70,6 +70,8 @@ contract MTGYRaffle is Ownable {
     uint256 _entryFee,
     uint256 _maxEntriesPerAddress
   ) external {
+    _validateDates(_start, _end);
+
     _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
     _mtgy.approve(address(_spend), mtgyServiceCost);
     _spend.spendOnProduct(mtgyServiceCost);
@@ -102,7 +104,7 @@ contract MTGYRaffle is Ownable {
       entryToken: _entryToken,
       entryFee: _entryFee,
       entryFeesCollected: 0,
-      maxEntriesPerAddress: _maxEntriesPerAddress, // 0 means no maximum (can enter as much as they'd like)
+      maxEntriesPerAddress: _maxEntriesPerAddress,
       entries: _entries,
       winner: address(0),
       isComplete: false,
@@ -237,6 +239,20 @@ contract MTGYRaffle is Ownable {
     _raffle.owner = _newOwner;
   }
 
+  function changeEndDate(bytes32 _id, uint256 _newEnd) external {
+    Raffle storage _raffle = raffles[_id];
+    require(
+      _raffle.owner == msg.sender,
+      'Must be the raffle owner to change owner.'
+    );
+    require(
+      !_raffle.isComplete,
+      'Raffle has already been drawn and completed.'
+    );
+
+    _raffle.end = _newEnd;
+  }
+
   function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
     _mtgy = IERC20(_tokenAddy);
   }
@@ -258,6 +274,22 @@ contract MTGYRaffle is Ownable {
       'Should be between 0 and 100.'
     );
     entryFeePercentageCharge = _newPercentage;
+  }
+
+  function _validateDates(uint256 _start, uint256 _end) private view {
+    require(
+      _start == 0 || _start >= block.timestamp,
+      'start time should be 0 or after the current time'
+    );
+    require(
+      _end == 0 || _end > block.timestamp,
+      'end time should be 0 or after the current time'
+    );
+    if (_start > 0) {
+      if (_end > 0) {
+        require(_start < _end, 'start time must be before end time');
+      }
+    }
   }
 
   function _random(uint256 _entries) private view returns (uint256) {
