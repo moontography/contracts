@@ -39,7 +39,11 @@ contract MTGYRaffle is Ownable {
   mapping(bytes32 => mapping(address => uint256)) public entriesIndexed;
 
   event CreateRaffle(address indexed creator, bytes32 id);
-  event EnterRaffle(bytes32 indexed id, address raffler);
+  event EnterRaffle(
+    bytes32 indexed id,
+    address raffler,
+    uint256 numberOfEntries
+  );
   event DrawWinner(bytes32 indexed id, address winner);
   event CloseRaffle(bytes32 indexed id);
 
@@ -196,7 +200,7 @@ contract MTGYRaffle is Ownable {
     emit CloseRaffle(_id);
   }
 
-  function enterRaffle(bytes32 _id) external {
+  function enterRaffle(bytes32 _id, uint256 _numEntries) external {
     Raffle storage _raffle = raffles[_id];
     require(_raffle.owner != address(0), 'We do not recognize this raffle.');
     require(
@@ -208,21 +212,29 @@ contract MTGYRaffle is Ownable {
       'It must be before the end time to enter the raffle.'
     );
     require(
-      _raffle.maxEntriesPerAddress == 0 ||
-        entriesIndexed[_id][msg.sender] < _raffle.maxEntriesPerAddress,
+      _numEntries > 0 &&
+        (_raffle.maxEntriesPerAddress == 0 ||
+          entriesIndexed[_id][msg.sender] + _numEntries <=
+          _raffle.maxEntriesPerAddress),
       'You have entered the maximum number of times you are allowed.'
     );
     require(!_raffle.isComplete, 'Raffle cannot be complete to be entered.');
 
     if (_raffle.entryFee > 0) {
       IERC20 _entryToken = IERC20(_raffle.entryToken);
-      _entryToken.transferFrom(msg.sender, address(this), _raffle.entryFee);
-      _raffle.entryFeesCollected += _raffle.entryFee;
+      _entryToken.transferFrom(
+        msg.sender,
+        address(this),
+        _raffle.entryFee * _numEntries
+      );
+      _raffle.entryFeesCollected += _raffle.entryFee * _numEntries;
     }
 
-    _raffle.entries.push(msg.sender);
-    entriesIndexed[_id][msg.sender] += 1;
-    emit EnterRaffle(_id, msg.sender);
+    for (uint256 _i = 0; _i < _numEntries; _i++) {
+      _raffle.entries.push(msg.sender);
+    }
+    entriesIndexed[_id][msg.sender] += _numEntries;
+    emit EnterRaffle(_id, msg.sender, _numEntries);
   }
 
   function changeRaffleOwner(bytes32 _id, address _newOwner) external {
