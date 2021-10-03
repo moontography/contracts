@@ -12,6 +12,8 @@ async function main() {
   // contract constructor arguments can be passed as parameters in #deploy
   // await Contract.deploy(arg1, arg2, ...)
   // TODO: make configurable through CLI params
+  // const maxFeePerGas = ethers.utils.parseUnits('80', 'gwei')
+  // const maxPriorityFeePerGas = ethers.utils.parseUnits('2', 'gwei')
   const contract = await Contract
     .deploy
     /* { maxFeePerGas, maxPriorityFeePerGas } */
