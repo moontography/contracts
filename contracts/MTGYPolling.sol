@@ -40,6 +40,18 @@ contract MTGYPolling is Ownable {
   // mapping of all polls owned by a user
   mapping(address => Poll[]) public userPolls;
 
+
+  // Vote struct
+  struct Vote {
+    string id; // id for ref
+    string pollId; // poll id
+    string optionId; // option id voted for
+    uint weight; // weight of vote
+  }
+
+  // mapping of all votes owned by a user
+  mapping(address => Vote[]) public userVotes;
+
   constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
     mtgyTokenAddy = _mtgyTokenAddy;
     mtgySpendAddy = _mtgySpendAddy;
