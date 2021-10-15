@@ -166,7 +166,7 @@ contract MTGYFaaSToken is ERC20 {
   //   lockedUntilDate = _newTime;
   // }
 
-  function stakeTokens(uint256 _amount, uint256[] memory _tokenIds) external {
+  function stakeTokens(uint256 _amount, uint256[] memory _tokenIds) public {
     require(
       getLastStakableBlock() > block.number,
       'this farm is expired and no more stakers can be added'
@@ -304,13 +304,23 @@ contract MTGYFaaSToken is ERC20 {
     emit Withdraw(msg.sender, _amountToRemoveFromStaked);
   }
 
-  function harvestForUser(address _userAddy) public returns (uint256) {
+  function harvestForUser(address _userAddy, bool _autoCompound)
+    public
+    returns (uint256)
+  {
     require(
       msg.sender == pool.creator || msg.sender == _userAddy,
       'can only harvest tokens for someone else if this was the contract creator'
     );
     _updatePool();
-    return _harvestTokens(_userAddy);
+    uint256 _tokensToUser = _harvestTokens(_userAddy);
+
+    if (_autoCompound) {
+      uint256[] memory _placeholder;
+      stakeTokens(_tokensToUser, _placeholder);
+    }
+
+    return _tokensToUser;
   }
 
   function getLastStakableBlock() public view returns (uint256) {

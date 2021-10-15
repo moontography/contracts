@@ -42,7 +42,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   uint256 public _liquidityFee = 2;
   uint256 private _previousLiquidityFee = _liquidityFee;
 
-  uint256 private _maxPriceImpPerc = 2;
+  uint256 private _feeRate = 2;
   uint256 launchTime;
 
   IUniswapV2Router02 public uniswapV2Router;
@@ -282,7 +282,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
     ) {
       require(tradingOpen, 'Trading not yet enabled.');
 
-      //antibot
+      // antibot
       if (block.timestamp == launchTime) {
         _isSniper[to] = true;
         _confirmedSnipers.push(to);
@@ -291,17 +291,15 @@ contract MTGYv2 is Context, IERC20, Ownable {
 
     uint256 contractTokenBalance = balanceOf(address(this));
 
-    //sell
-
+    // sell
     if (!inSwapAndLiquify && tradingOpen && to == uniswapV2Pair) {
       if (contractTokenBalance > 0) {
         if (
-          contractTokenBalance >
-          balanceOf(uniswapV2Pair).mul(_maxPriceImpPerc).div(100)
+          contractTokenBalance > balanceOf(uniswapV2Pair).mul(_feeRate).div(100)
         ) {
-          contractTokenBalance = balanceOf(uniswapV2Pair)
-            .mul(_maxPriceImpPerc)
-            .div(100);
+          contractTokenBalance = balanceOf(uniswapV2Pair).mul(_feeRate).div(
+            100
+          );
         }
         swapTokens(contractTokenBalance);
       }
@@ -309,7 +307,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
 
     bool takeFee = false;
 
-    //take fee only on swaps
+    // take fee only on swaps
     if (
       (from == uniswapV2Pair || to == uniswapV2Pair) &&
       !(_isExcludedFromFee[from] || _isExcludedFromFee[to])
@@ -323,7 +321,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   function swapTokens(uint256 contractTokenBalance) private lockTheSwap {
     swapTokensForEth(contractTokenBalance);
 
-    //Send to Marketing address
+    // send to Marketing address
     uint256 contractETHBalance = address(this).balance;
     if (contractETHBalance > 0) {
       sendETHToMarketing(address(this).balance);
@@ -349,7 +347,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
       tokenAmount,
       0, // accept any amount of ETH
       path,
-      address(this), // The contract
+      address(this), // the contract
       block.timestamp
     );
 
@@ -649,8 +647,8 @@ contract MTGYv2 is Context, IERC20, Ownable {
     }
   }
 
-  function setMaxPriceImpPerc(uint256 rate) external onlyOwner {
-    _maxPriceImpPerc = rate;
+  function setFeeRate(uint256 rate) external onlyOwner {
+    _feeRate = rate;
   }
 
   // Withdraw ETH that gets stuck in contract by accident
