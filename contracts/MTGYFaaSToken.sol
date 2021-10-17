@@ -315,7 +315,11 @@ contract MTGYFaaSToken is ERC20 {
     _updatePool();
     uint256 _tokensToUser = _harvestTokens(_userAddy);
 
-    if (_autoCompound) {
+    if (
+      _autoCompound &&
+      !pool.isStakedNft &&
+      address(_rewardsToken) == address(_stakedERC20)
+    ) {
       uint256[] memory _placeholder;
       stakeTokens(_tokensToUser, _placeholder);
     }
