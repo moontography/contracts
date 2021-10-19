@@ -132,9 +132,12 @@ contract MTGYTokenLocker is Ownable {
       IERC721 _token = IERC721(_locker.token);
       _token.transferFrom(address(this), msg.sender, _amountOrTokenId);
     } else {
+      uint256 _maxAmount = maxWithdrawableTokens(_idx);
       require(
-        _maxWithdrawableTokens(_locker) > 0,
-        'There are no tokens available to withdraw currently.'
+        _amountOrTokenId > 0 &&
+          _maxAmount > 0 &&
+          _maxAmount <= _amountOrTokenId,
+        'Make sure you enter a valid withdrawable amount and not more than has vested.'
       );
       IERC20 _token = IERC20(_locker.token);
       _token.transferFrom(address(this), msg.sender, _amountOrTokenId);
@@ -174,16 +177,15 @@ contract MTGYTokenLocker is Ownable {
     mtgyServiceCost = _newCost;
   }
 
-  function _maxWithdrawableTokens(Locker memory _locker)
-    private
-    returns (uint256)
-  {
+  function maxWithdrawableTokens(uint256 _idx) public returns (uint256) {
+    Locker memory _locker = lockers[_idx];
     uint256 _fullLockPeriodSec = _locker.end.sub(_locker.start);
     uint256 _secondsPerVest = _fullLockPeriodSec.div(_locker.numberVests);
     uint256 _tokensPerVest = _locker.amountSupply.div(_locker.numberVests);
     uint256 _numberWithdrawableVests = (block.timestamp.sub(_locker.start)).div(
       _secondsPerVest
     );
+    if (_numberWithdrawableVests == 0) return 0;
     return
       _numberWithdrawableVests.mul(_tokensPerVest).sub(_locker.amountWithdrawn);
   }
