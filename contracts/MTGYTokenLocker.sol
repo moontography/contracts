@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import './MTGYSpend.sol';
 
 /**
@@ -11,6 +12,8 @@ import './MTGYSpend.sol';
  * @dev This is the main contract that supports locking/vesting tokens.
  */
 contract MTGYTokenLocker is Ownable {
+  using SafeMath for uint256;
+
   struct Locker {
     address owner;
     bool isNft; // rewardToken is either ERC20 or ERC721
@@ -129,7 +132,10 @@ contract MTGYTokenLocker is Ownable {
       IERC721 _token = IERC721(_locker.token);
       _token.transferFrom(address(this), msg.sender, _amountOrTokenId);
     } else {
-      // TODO: calculate amount of tokens that can be withdrawn
+      require(
+        _maxWithdrawableTokens(_locker) > 0,
+        'There are no tokens available to withdraw currently.'
+      );
       IERC20 _token = IERC20(_locker.token);
       _token.transferFrom(address(this), msg.sender, _amountOrTokenId);
     }
@@ -166,5 +172,19 @@ contract MTGYTokenLocker is Ownable {
 
   function changeMtgyServiceCost(uint256 _newCost) external onlyOwner {
     mtgyServiceCost = _newCost;
+  }
+
+  function _maxWithdrawableTokens(Locker memory _locker)
+    private
+    returns (uint256)
+  {
+    uint256 _fullLockPeriodSec = _locker.end.sub(_locker.start);
+    uint256 _secondsPerVest = _fullLockPeriodSec.div(_locker.numberVests);
+    uint256 _tokensPerVest = _locker.amountSupply.div(_locker.numberVests);
+    uint256 _numberWithdrawableVests = (block.timestamp.sub(_locker.start)).div(
+      _secondsPerVest
+    );
+    return
+      _numberWithdrawableVests.mul(_tokensPerVest).sub(_locker.amountWithdrawn);
   }
 }
