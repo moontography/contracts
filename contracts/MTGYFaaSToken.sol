@@ -2,7 +2,8 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
+import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
 /**
@@ -14,9 +15,9 @@ contract MTGYFaaSToken is ERC20 {
   using SafeMath for uint256;
   bool public contractIsRemoved = false;
 
-  ERC20 private _rewardsToken;
-  ERC20 private _stakedERC20;
-  ERC721 private _stakedERC721;
+  IERC20 private _rewardsToken;
+  IERC20 private _stakedERC20;
+  IERC721 private _stakedERC721;
   PoolInfo public pool;
   address private constant _burner = 0x000000000000000000000000000000000000dEaD;
 
@@ -93,11 +94,11 @@ contract MTGYFaaSToken is ERC20 {
       'locked time must be after now or 0'
     );
 
-    _rewardsToken = ERC20(_rewardsTokenAddy);
+    _rewardsToken = IERC20(_rewardsTokenAddy);
     if (_isStakedNft) {
-      _stakedERC721 = ERC721(_stakedTokenAddy);
+      _stakedERC721 = IERC721(_stakedTokenAddy);
     } else {
-      _stakedERC20 = ERC20(_stakedTokenAddy);
+      _stakedERC20 = IERC20(_stakedTokenAddy);
     }
 
     pool = PoolInfo({
@@ -166,7 +167,7 @@ contract MTGYFaaSToken is ERC20 {
   //   lockedUntilDate = _newTime;
   // }
 
-  function stakeTokens(uint256 _amount, uint256[] memory _tokenIds) external {
+  function stakeTokens(uint256 _amount, uint256[] memory _tokenIds) public {
     require(
       getLastStakableBlock() > block.number,
       'this farm is expired and no more stakers can be added'
@@ -221,8 +222,8 @@ contract MTGYFaaSToken is ERC20 {
     emit Deposit(msg.sender, _finalAmountTransferred);
   }
 
-  // pass 'false' for shouldHarvest for emergency unstaking without claiming rewards
-  function unstakeTokens(uint256 _amount, bool shouldHarvest) external {
+  // pass 'false' for _shouldHarvest for emergency unstaking without claiming rewards
+  function unstakeTokens(uint256 _amount, bool _shouldHarvest) external {
     StakerInfo memory _staker = stakers[msg.sender];
     uint256 _userBalance = balanceOf(msg.sender);
     require(
@@ -235,7 +236,7 @@ contract MTGYFaaSToken is ERC20 {
     // the contract rewards were removed by the original contract creator or
     // the contract is expired
     require(
-      !shouldHarvest ||
+      !_shouldHarvest ||
         block.timestamp >=
         _staker.timeOriginallyStaked.add(pool.stakeTimeLockSec) ||
         contractIsRemoved ||
@@ -245,7 +246,7 @@ contract MTGYFaaSToken is ERC20 {
 
     _updatePool();
 
-    if (shouldHarvest) {
+    if (_shouldHarvest) {
       _harvestTokens(msg.sender);
     }
 
@@ -304,13 +305,27 @@ contract MTGYFaaSToken is ERC20 {
     emit Withdraw(msg.sender, _amountToRemoveFromStaked);
   }
 
-  function harvestForUser(address _userAddy) public returns (uint256) {
+  function harvestForUser(address _userAddy, bool _autoCompound)
+    external
+    returns (uint256)
+  {
     require(
       msg.sender == pool.creator || msg.sender == _userAddy,
       'can only harvest tokens for someone else if this was the contract creator'
     );
     _updatePool();
-    return _harvestTokens(_userAddy);
+    uint256 _tokensToUser = _harvestTokens(_userAddy);
+
+    if (
+      _autoCompound &&
+      !pool.isStakedNft &&
+      address(_rewardsToken) == address(_stakedERC20)
+    ) {
+      uint256[] memory _placeholder;
+      stakeTokens(_tokensToUser, _placeholder);
+    }
+
+    return _tokensToUser;
   }
 
   function getLastStakableBlock() public view returns (uint256) {

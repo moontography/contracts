@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import './MTGY.sol';
 import './MTGYSpend.sol';
 
 /**
@@ -11,9 +10,9 @@ import './MTGYSpend.sol';
  * @dev This is the main contract that supports holding metadata for MTGY atomic inter and intrachain swapping
  */
 contract MTGYAtomicSwapInstance is Ownable {
-  MTGY private _mtgy;
+  IERC20 private _mtgy;
   MTGYSpend private _spend;
-  ERC20 private _token;
+  IERC20 private _token;
 
   address public tokenOwner;
   address public oracleAddress;
@@ -70,9 +69,9 @@ contract MTGYAtomicSwapInstance is Ownable {
     oracleAddress = _oracleAddress;
     tokenOwner = _tokenOwner;
     maxSwapAmount = _maxSwapAmount;
-    _mtgy = MTGY(_mtgyAddress);
+    _mtgy = IERC20(_mtgyAddress);
     _spend = MTGYSpend(_mtgySpendAddress);
-    _token = ERC20(_tokenAddy);
+    _token = IERC20(_tokenAddy);
   }
 
   function getSwapTokenAddress() external view returns (address) {
