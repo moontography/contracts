@@ -306,7 +306,7 @@ contract MTGYFaaSToken is ERC20 {
   }
 
   function harvestForUser(address _userAddy, bool _autoCompound)
-    public
+    external
     returns (uint256)
   {
     require(
