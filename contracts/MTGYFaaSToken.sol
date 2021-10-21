@@ -222,8 +222,8 @@ contract MTGYFaaSToken is ERC20 {
     emit Deposit(msg.sender, _finalAmountTransferred);
   }
 
-  // pass 'false' for shouldHarvest for emergency unstaking without claiming rewards
-  function unstakeTokens(uint256 _amount, bool shouldHarvest) external {
+  // pass 'false' for _shouldHarvest for emergency unstaking without claiming rewards
+  function unstakeTokens(uint256 _amount, bool _shouldHarvest) external {
     StakerInfo memory _staker = stakers[msg.sender];
     uint256 _userBalance = balanceOf(msg.sender);
     require(
@@ -236,7 +236,7 @@ contract MTGYFaaSToken is ERC20 {
     // the contract rewards were removed by the original contract creator or
     // the contract is expired
     require(
-      !shouldHarvest ||
+      !_shouldHarvest ||
         block.timestamp >=
         _staker.timeOriginallyStaked.add(pool.stakeTimeLockSec) ||
         contractIsRemoved ||
@@ -246,7 +246,7 @@ contract MTGYFaaSToken is ERC20 {
 
     _updatePool();
 
-    if (shouldHarvest) {
+    if (_shouldHarvest) {
       _harvestTokens(msg.sender);
     }
 
