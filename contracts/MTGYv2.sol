@@ -15,8 +15,6 @@ contract MTGYv2 is Context, IERC20, Ownable {
 
   address payable public marketingAddress =
     payable(0x2d1B8ba4a49C0338A301BD16ff43E4A6d2604dc3); // Marketing Address
-  address public immutable deadAddress =
-    0x000000000000000000000000000000000000dEaD;
   mapping(address => uint256) private _rOwned;
   mapping(address => uint256) private _tOwned;
   mapping(address => mapping(address => uint256)) private _allowances;
@@ -24,17 +22,17 @@ contract MTGYv2 is Context, IERC20, Ownable {
   address[] private _confirmedSnipers;
 
   mapping(address => bool) private _isExcludedFromFee;
-  mapping(address => bool) private _isExcluded;
+  mapping(address => bool) private _isExcludedFromReward;
   address[] private _excluded;
 
+  string private constant _name = 'Moontography';
+  string private constant _symbol = 'MTGYv2';
+  uint8 private constant _decimals = 9;
+
   uint256 private constant MAX = ~uint256(0);
-  uint256 private _tTotal = 5000000000000 * 10**9;
+  uint256 private constant _tTotal = 1000000000 * 10**_decimals;
   uint256 private _rTotal = (MAX - (MAX % _tTotal));
   uint256 private _tFeeTotal;
-
-  string private _name = 'Moontography';
-  string private _symbol = 'MTGYv2';
-  uint8 private _decimals = 9;
 
   uint256 public _taxFee = 0;
   uint256 private _previousTaxFee = _taxFee;
@@ -42,29 +40,29 @@ contract MTGYv2 is Context, IERC20, Ownable {
   uint256 public _liquidityFee = 2;
   uint256 private _previousLiquidityFee = _liquidityFee;
 
-  uint256 private _feeRate = 2;
-  uint256 launchTime;
+  uint256 public feeRate = 2;
+  uint256 public launchTime;
 
   IUniswapV2Router02 public uniswapV2Router;
   address public uniswapV2Pair;
 
   // PancakeSwap: 0x10ED43C718714eb63d5aA57B78B54704E256024E
   // Uniswap V2: 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
-  address private _uniswapRouterAddress =
+  address private constant _uniswapRouterAddress =
     0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
-  bool inSwapAndLiquify;
+  bool private _inSwapAndLiquify;
 
-  bool tradingOpen = false;
+  bool private _tradingOpen = false;
 
   event SwapETHForTokens(uint256 amountIn, address[] path);
 
   event SwapTokensForETH(uint256 amountIn, address[] path);
 
   modifier lockTheSwap() {
-    inSwapAndLiquify = true;
+    _inSwapAndLiquify = true;
     _;
-    inSwapAndLiquify = false;
+    _inSwapAndLiquify = false;
   }
 
   constructor() {
@@ -90,33 +88,33 @@ contract MTGYv2 is Context, IERC20, Ownable {
   function openTrading() external onlyOwner {
     _liquidityFee = _previousLiquidityFee;
     _taxFee = _previousTaxFee;
-    tradingOpen = true;
+    _tradingOpen = true;
     launchTime = block.timestamp;
   }
 
-  function name() public view returns (string memory) {
+  function name() external pure returns (string memory) {
     return _name;
   }
 
-  function symbol() public view returns (string memory) {
+  function symbol() external pure returns (string memory) {
     return _symbol;
   }
 
-  function decimals() public view returns (uint8) {
+  function decimals() external pure returns (uint8) {
     return _decimals;
   }
 
-  function totalSupply() public view override returns (uint256) {
+  function totalSupply() external pure override returns (uint256) {
     return _tTotal;
   }
 
   function balanceOf(address account) public view override returns (uint256) {
-    if (_isExcluded[account]) return _tOwned[account];
+    if (_isExcludedFromReward[account]) return _tOwned[account];
     return tokenFromReflection(_rOwned[account]);
   }
 
   function transfer(address recipient, uint256 amount)
-    public
+    external
     override
     returns (bool)
   {
@@ -125,7 +123,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function allowance(address owner, address spender)
-    public
+    external
     view
     override
     returns (uint256)
@@ -134,7 +132,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function approve(address spender, uint256 amount)
-    public
+    external
     override
     returns (bool)
   {
@@ -146,7 +144,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
     address sender,
     address recipient,
     uint256 amount
-  ) public override returns (bool) {
+  ) external override returns (bool) {
     _transfer(sender, recipient, amount);
     _approve(
       sender,
@@ -160,7 +158,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function increaseAllowance(address spender, uint256 addedValue)
-    public
+    external
     virtual
     returns (bool)
   {
@@ -173,7 +171,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function decreaseAllowance(address spender, uint256 subtractedValue)
-    public
+    external
     virtual
     returns (bool)
   {
@@ -188,18 +186,18 @@ contract MTGYv2 is Context, IERC20, Ownable {
     return true;
   }
 
-  function isExcludedFromReward(address account) public view returns (bool) {
-    return _isExcluded[account];
+  function isExcludedFromReward(address account) external view returns (bool) {
+    return _isExcludedFromReward[account];
   }
 
-  function totalFees() public view returns (uint256) {
+  function totalFees() external view returns (uint256) {
     return _tFeeTotal;
   }
 
-  function deliver(uint256 tAmount) public {
+  function deliver(uint256 tAmount) external {
     address sender = _msgSender();
     require(
-      !_isExcluded[sender],
+      !_isExcludedFromReward[sender],
       'Excluded addresses cannot call this function'
     );
     (uint256 rAmount, , , , , ) = _getValues(tAmount);
@@ -209,7 +207,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function reflectionFromToken(uint256 tAmount, bool deductTransferFee)
-    public
+    external
     view
     returns (uint256)
   {
@@ -229,22 +227,22 @@ contract MTGYv2 is Context, IERC20, Ownable {
     return rAmount.div(currentRate);
   }
 
-  function excludeFromReward(address account) public onlyOwner {
-    require(!_isExcluded[account], 'Account is already excluded');
+  function excludeFromReward(address account) external onlyOwner {
+    require(!_isExcludedFromReward[account], 'Account is already excluded');
     if (_rOwned[account] > 0) {
       _tOwned[account] = tokenFromReflection(_rOwned[account]);
     }
-    _isExcluded[account] = true;
+    _isExcludedFromReward[account] = true;
     _excluded.push(account);
   }
 
   function includeInReward(address account) external onlyOwner {
-    require(_isExcluded[account], 'Account is already excluded');
+    require(_isExcludedFromReward[account], 'Account is already included');
     for (uint256 i = 0; i < _excluded.length; i++) {
       if (_excluded[i] == account) {
         _excluded[i] = _excluded[_excluded.length - 1];
         _tOwned[account] = 0;
-        _isExcluded[account] = false;
+        _isExcludedFromReward[account] = false;
         _excluded.pop();
         break;
       }
@@ -271,8 +269,8 @@ contract MTGYv2 is Context, IERC20, Ownable {
     require(from != address(0), 'ERC20: transfer from the zero address');
     require(to != address(0), 'ERC20: transfer to the zero address');
     require(amount > 0, 'Transfer amount must be greater than zero');
-    require(!_isSniper[to], 'You have no power here!');
-    require(!_isSniper[msg.sender], 'You have no power here!');
+    require(!_isSniper[to], 'Stop sniping!');
+    require(!_isSniper[msg.sender], 'Stop sniping!');
 
     // buy
     if (
@@ -280,7 +278,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
       to != address(uniswapV2Router) &&
       !_isExcludedFromFee[to]
     ) {
-      require(tradingOpen, 'Trading not yet enabled.');
+      require(_tradingOpen, 'Trading not yet enabled.');
 
       // antibot
       if (block.timestamp == launchTime) {
@@ -289,19 +287,18 @@ contract MTGYv2 is Context, IERC20, Ownable {
       }
     }
 
-    uint256 contractTokenBalance = balanceOf(address(this));
-
     // sell
-    if (!inSwapAndLiquify && tradingOpen && to == uniswapV2Pair) {
-      if (contractTokenBalance > 0) {
+    if (!_inSwapAndLiquify && _tradingOpen && to == uniswapV2Pair) {
+      uint256 _contractTokenBalance = balanceOf(address(this));
+      if (_contractTokenBalance > 0) {
         if (
-          contractTokenBalance > balanceOf(uniswapV2Pair).mul(_feeRate).div(100)
+          _contractTokenBalance > balanceOf(uniswapV2Pair).mul(feeRate).div(100)
         ) {
-          contractTokenBalance = balanceOf(uniswapV2Pair).mul(_feeRate).div(
+          _contractTokenBalance = balanceOf(uniswapV2Pair).mul(feeRate).div(
             100
           );
         }
-        swapTokens(contractTokenBalance);
+        _swapTokens(_contractTokenBalance);
       }
     }
 
@@ -318,23 +315,23 @@ contract MTGYv2 is Context, IERC20, Ownable {
     _tokenTransfer(from, to, amount, takeFee);
   }
 
-  function swapTokens(uint256 contractTokenBalance) private lockTheSwap {
-    swapTokensForEth(contractTokenBalance);
+  function _swapTokens(uint256 _contractTokenBalance) private lockTheSwap {
+    _swapTokensForEth(_contractTokenBalance);
 
     // send to Marketing address
     uint256 contractETHBalance = address(this).balance;
     if (contractETHBalance > 0) {
-      sendETHToMarketing(address(this).balance);
+      _sendETHToMarketing(address(this).balance);
     }
   }
 
-  function sendETHToMarketing(uint256 amount) private {
+  function _sendETHToMarketing(uint256 amount) private {
     // marketingAddress.transfer(amount);
     // Ignore the boolean return value. If it gets stuck, then retrieve via `emergencyWithdraw`.
     marketingAddress.call{ value: amount }('');
   }
 
-  function swapTokensForEth(uint256 tokenAmount) private {
+  function _swapTokensForEth(uint256 tokenAmount) private {
     // generate the uniswap pair path of token -> weth
     address[] memory path = new address[](2);
     path[0] = address(this);
@@ -354,40 +351,29 @@ contract MTGYv2 is Context, IERC20, Ownable {
     emit SwapTokensForETH(tokenAmount, path);
   }
 
-  function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
-    // approve token transfer to cover all possible scenarios
-    _approve(address(this), address(uniswapV2Router), tokenAmount);
-
-    // add the liquidity
-    uniswapV2Router.addLiquidityETH{ value: ethAmount }(
-      address(this),
-      tokenAmount,
-      0, // slippage is unavoidable
-      0, // slippage is unavoidable
-      owner(),
-      block.timestamp
-    );
-  }
-
   function _tokenTransfer(
     address sender,
     address recipient,
     uint256 amount,
     bool takeFee
   ) private {
-    if (!takeFee) removeAllFee();
+    if (!takeFee) _removeAllFee();
 
-    if (_isExcluded[sender] && !_isExcluded[recipient]) {
+    if (_isExcludedFromReward[sender] && !_isExcludedFromReward[recipient]) {
       _transferFromExcluded(sender, recipient, amount);
-    } else if (!_isExcluded[sender] && _isExcluded[recipient]) {
+    } else if (
+      !_isExcludedFromReward[sender] && _isExcludedFromReward[recipient]
+    ) {
       _transferToExcluded(sender, recipient, amount);
-    } else if (_isExcluded[sender] && _isExcluded[recipient]) {
+    } else if (
+      _isExcludedFromReward[sender] && _isExcludedFromReward[recipient]
+    ) {
       _transferBothExcluded(sender, recipient, amount);
     } else {
       _transferStandard(sender, recipient, amount);
     }
 
-    if (!takeFee) restoreAllFee();
+    if (!takeFee) _restoreAllFee();
   }
 
   function _transferStandard(
@@ -512,8 +498,8 @@ contract MTGYv2 is Context, IERC20, Ownable {
       uint256
     )
   {
-    uint256 tFee = calculateTaxFee(tAmount);
-    uint256 tLiquidity = calculateLiquidityFee(tAmount);
+    uint256 tFee = _calculateTaxFee(tAmount);
+    uint256 tLiquidity = _calculateLiquidityFee(tAmount);
     uint256 tTransferAmount = tAmount.sub(tFee).sub(tLiquidity);
     return (tTransferAmount, tFee, tLiquidity);
   }
@@ -561,15 +547,15 @@ contract MTGYv2 is Context, IERC20, Ownable {
     uint256 currentRate = _getRate();
     uint256 rLiquidity = tLiquidity.mul(currentRate);
     _rOwned[address(this)] = _rOwned[address(this)].add(rLiquidity);
-    if (_isExcluded[address(this)])
+    if (_isExcludedFromReward[address(this)])
       _tOwned[address(this)] = _tOwned[address(this)].add(tLiquidity);
   }
 
-  function calculateTaxFee(uint256 _amount) private view returns (uint256) {
+  function _calculateTaxFee(uint256 _amount) private view returns (uint256) {
     return _amount.mul(_taxFee).div(10**2);
   }
 
-  function calculateLiquidityFee(uint256 _amount)
+  function _calculateLiquidityFee(uint256 _amount)
     private
     view
     returns (uint256)
@@ -577,7 +563,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
     return _amount.mul(_liquidityFee).div(10**2);
   }
 
-  function removeAllFee() private {
+  function _removeAllFee() private {
     if (_taxFee == 0 && _liquidityFee == 0) return;
 
     _previousTaxFee = _taxFee;
@@ -587,20 +573,20 @@ contract MTGYv2 is Context, IERC20, Ownable {
     _liquidityFee = 0;
   }
 
-  function restoreAllFee() private {
+  function _restoreAllFee() private {
     _taxFee = _previousTaxFee;
     _liquidityFee = _previousLiquidityFee;
   }
 
-  function isExcludedFromFee(address account) public view returns (bool) {
+  function isExcludedFromFee(address account) external view returns (bool) {
     return _isExcludedFromFee[account];
   }
 
-  function excludeFromFee(address account) public onlyOwner {
+  function excludeFromFee(address account) external onlyOwner {
     _isExcludedFromFee[account] = true;
   }
 
-  function includeInFee(address account) public onlyOwner {
+  function includeInFee(address account) external onlyOwner {
     _isExcludedFromFee[account] = false;
   }
 
@@ -616,26 +602,27 @@ contract MTGYv2 is Context, IERC20, Ownable {
     marketingAddress = payable(_marketingAddress);
   }
 
-  function transferToAddressETH(address payable recipient, uint256 amount)
-    private
+  function transferToAddressETH(address payable _recipient, uint256 _amount)
+    external
+    onlyOwner
   {
     // recipient.transfer(amount);
     // Ignore the boolean return value. If it gets stuck, then retrieve via `emergencyWithdraw`.
-    recipient.call{ value: amount }('');
+    _recipient.call{ value: _amount }('');
   }
 
-  function isRemovedSniper(address account) public view returns (bool) {
+  function isRemovedSniper(address account) external view returns (bool) {
     return _isSniper[account];
   }
 
-  function _removeSniper(address account) external onlyOwner {
+  function removeSniper(address account) external onlyOwner {
     require(account != _uniswapRouterAddress, 'We can not blacklist Uniswap');
     require(!_isSniper[account], 'Account is already blacklisted');
     _isSniper[account] = true;
     _confirmedSnipers.push(account);
   }
 
-  function _amnestySniper(address account) external onlyOwner {
+  function amnestySniper(address account) external onlyOwner {
     require(_isSniper[account], 'Account is not blacklisted');
     for (uint256 i = 0; i < _confirmedSnipers.length; i++) {
       if (_confirmedSnipers[i] == account) {
@@ -648,7 +635,7 @@ contract MTGYv2 is Context, IERC20, Ownable {
   }
 
   function setFeeRate(uint256 rate) external onlyOwner {
-    _feeRate = rate;
+    feeRate = rate;
   }
 
   // Withdraw ETH that gets stuck in contract by accident
@@ -656,6 +643,6 @@ contract MTGYv2 is Context, IERC20, Ownable {
     payable(owner()).send(address(this).balance);
   }
 
-  //to recieve ETH from uniswapV2Router when swaping
+  // to recieve ETH from uniswapV2Router when swaping
   receive() external payable {}
 }
