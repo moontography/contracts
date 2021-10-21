@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
-import './MTGY.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import './MTGYSpend.sol';
 
 /**
@@ -10,7 +10,7 @@ import './MTGYSpend.sol';
  * @dev Very simple example of a contract receiving ERC20 tokens.
  */
 contract MTGYTrustedTimestamping is Ownable {
-  MTGY private _token;
+  IERC20 private _mtgy;
   MTGYSpend private _spend;
 
   struct DataHash {
@@ -26,6 +26,7 @@ contract MTGYTrustedTimestamping is Ownable {
   }
 
   uint256 public mtgyServiceCost = 100 * 10**18;
+  address public mtgyTokenAddy;
   address public spendAddress;
   uint256 public totalNumberHashesStored;
   mapping(address => DataHash[]) public addressHashes;
@@ -35,11 +36,16 @@ contract MTGYTrustedTimestamping is Ownable {
 
   constructor(address _mtgyAddress, address _mtgySpendAddress) {
     spendAddress = _mtgySpendAddress;
-    _token = MTGY(_mtgyAddress);
+    _mtgy = IERC20(_mtgyAddress);
     _spend = MTGYSpend(spendAddress);
   }
 
-  function changeSpendAddress(address _spendAddress) external onlyOwner {
+  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
+    mtgyTokenAddy = _tokenAddy;
+    _mtgy = IERC20(_tokenAddy);
+  }
+
+  function changeMtgySpendAddy(address _spendAddress) external onlyOwner {
     spendAddress = _spendAddress;
     _spend = MTGYSpend(spendAddress);
   }
@@ -59,8 +65,8 @@ contract MTGYTrustedTimestamping is Ownable {
     string memory fileName,
     uint256 fileSizeBytes
   ) external {
-    _token.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _token.approve(spendAddress, mtgyServiceCost);
+    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
+    _mtgy.approve(spendAddress, mtgyServiceCost);
     _spend.spendOnProduct(mtgyServiceCost);
     uint256 theTimeNow = block.timestamp;
     addressHashes[msg.sender].push(

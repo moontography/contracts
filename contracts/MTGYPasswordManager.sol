@@ -2,7 +2,8 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
-import './MTGY.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import './MTGYSpend.sol';
 
 /**
@@ -12,7 +13,7 @@ import './MTGYSpend.sol';
 contract MTGYPasswordManager is Ownable {
   using SafeMath for uint256;
 
-  MTGY private _mtgy;
+  IERC20 private _mtgy;
   MTGYSpend private _mtgySpend;
 
   address public mtgyTokenAddy;
@@ -33,13 +34,13 @@ contract MTGYPasswordManager is Ownable {
   constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
     mtgyTokenAddy = _mtgyTokenAddy;
     mtgySpendAddy = _mtgySpendAddy;
-    _mtgy = MTGY(_mtgyTokenAddy);
+    _mtgy = IERC20(_mtgyTokenAddy);
     _mtgySpend = MTGYSpend(_mtgySpendAddy);
   }
 
   function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
     mtgyTokenAddy = _tokenAddy;
-    _mtgy = MTGY(_tokenAddy);
+    _mtgy = IERC20(_tokenAddy);
   }
 
   function changeMtgySpendAddy(address _spendAddy) external onlyOwner {
