@@ -2,7 +2,8 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
+import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
 /**
@@ -14,9 +15,9 @@ contract MTGYFaaSToken is ERC20 {
   using SafeMath for uint256;
   bool public contractIsRemoved = false;
 
-  ERC20 private _rewardsToken;
-  ERC20 private _stakedERC20;
-  ERC721 private _stakedERC721;
+  IERC20 private _rewardsToken;
+  IERC20 private _stakedERC20;
+  IERC721 private _stakedERC721;
   PoolInfo public pool;
   address private constant _burner = 0x000000000000000000000000000000000000dEaD;
 
@@ -93,11 +94,11 @@ contract MTGYFaaSToken is ERC20 {
       'locked time must be after now or 0'
     );
 
-    _rewardsToken = ERC20(_rewardsTokenAddy);
+    _rewardsToken = IERC20(_rewardsTokenAddy);
     if (_isStakedNft) {
-      _stakedERC721 = ERC721(_stakedTokenAddy);
+      _stakedERC721 = IERC721(_stakedTokenAddy);
     } else {
-      _stakedERC20 = ERC20(_stakedTokenAddy);
+      _stakedERC20 = IERC20(_stakedTokenAddy);
     }
 
     pool = PoolInfo({

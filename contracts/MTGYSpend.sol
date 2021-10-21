@@ -2,14 +2,14 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
 
 /**
  * @title MTGYSpend
  * @dev Logic for spending $MTGY on products in the moontography ecosystem.
  */
 contract MTGYSpend is Ownable {
-  ERC20 private _mtgy;
+  IERC20 private _mtgy;
 
   struct SpentInfo {
     uint256 timestamp;
@@ -29,12 +29,12 @@ contract MTGYSpend is Ownable {
 
   constructor(address _mtgyTokenAddy) {
     mtgyTokenAddy = _mtgyTokenAddy;
-    _mtgy = ERC20(_mtgyTokenAddy);
+    _mtgy = IERC20(_mtgyTokenAddy);
   }
 
   function changeMtgyTokenAddy(address _mtgyAddy) external onlyOwner {
     mtgyTokenAddy = _mtgyAddy;
-    _mtgy = ERC20(_mtgyAddy);
+    _mtgy = IERC20(_mtgyAddy);
   }
 
   function changeDevWallet(address _newDevWallet) external onlyOwner {
