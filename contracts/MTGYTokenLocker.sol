@@ -12,22 +12,23 @@ import './MTGYSpend.sol';
  * @dev This is the main contract that supports locking/vesting tokens.
  */
 contract MTGYTokenLocker is Ownable {
+  using SafeMath for uint48;
   using SafeMath for uint256;
 
   struct Locker {
     address owner;
-    bool isNft; // rewardToken is either ERC20 or ERC721
     address token;
+    bool isNft; // rewardToken is either ERC20 or ERC721
     uint256 amountSupply; // If ERC-721, will always be 1, otherwise is amount of tokens locked
     uint256 tokenId; // only populated if isNft is true
-    uint256 start; // timestamp (uint256) of start lock time (block.timestamp at creation)
-    uint256 end; // timestamp (uint256) of end lock time
+    uint48 start; // timestamp (uint256) of start lock time (block.timestamp at creation)
+    uint48 end; // timestamp (uint256) of end lock time
     address[] withdrawable; // any additional addresses that can withdraw tokens from this locker
     uint256 amountWithdrawn;
     // numberVests:
     // 1 means can only withdraw tokens at end of lock period
     // any other number is evenly distributed throughout lock period
-    uint256 numberVests;
+    uint8 numberVests;
   }
 
   IERC20 private _mtgy;
@@ -35,9 +36,9 @@ contract MTGYTokenLocker is Ownable {
 
   uint256 public mtgyServiceCost = 5000 * 10**18;
 
-  mapping(address => uint256[]) public lockersByOwner;
-  mapping(address => uint256[]) public lockersByToken;
-  mapping(address => uint256[]) public lockersByWithdrawable;
+  mapping(address => uint16[]) public lockersByOwner;
+  mapping(address => uint16[]) public lockersByToken;
+  mapping(address => uint16[]) public lockersByWithdrawable;
   Locker[] public lockers;
 
   event CreateLocker(address indexed creator, uint256 idx);
@@ -59,8 +60,8 @@ contract MTGYTokenLocker is Ownable {
   function createLocker(
     address _tokenAddress,
     uint256 _amountOrTokenId,
-    uint256 _end,
-    uint256 _numberVests,
+    uint48 _end,
+    uint8 _numberVests,
     address[] memory _withdrawableAddresses,
     bool _isNft
   ) external {
@@ -90,25 +91,25 @@ contract MTGYTokenLocker is Ownable {
         token: _tokenAddress,
         amountSupply: _isNft ? 1 : _amountOrTokenId,
         tokenId: _isNft ? _amountOrTokenId : 0,
-        start: block.timestamp,
+        start: uint48(block.timestamp),
         end: _end,
         withdrawable: _withdrawableAddresses,
         amountWithdrawn: 0,
         numberVests: _isNft ? 1 : (_numberVests == 0 ? 1 : _numberVests)
       })
     );
-    uint256 _newIdx = lockers.length - 1;
+    uint16 _newIdx = uint16(lockers.length - 1);
     lockersByOwner[msg.sender].push(_newIdx);
     lockersByToken[_tokenAddress].push(_newIdx);
     if (_withdrawableAddresses.length > 0) {
-      for (uint256 _i = 0; _i < _withdrawableAddresses.length; _i++) {
+      for (uint16 _i = 0; _i < _withdrawableAddresses.length; _i++) {
         lockersByWithdrawable[_withdrawableAddresses[_i]].push(_newIdx);
       }
     }
     emit CreateLocker(msg.sender, _newIdx);
   }
 
-  function withdrawLockedTokens(uint256 _idx, uint256 _amountOrTokenId)
+  function withdrawLockedTokens(uint16 _idx, uint256 _amountOrTokenId)
     external
   {
     Locker storage _locker = lockers[_idx];
@@ -146,7 +147,7 @@ contract MTGYTokenLocker is Ownable {
     emit WithdrawTokens(_idx, msg.sender, _amountOrTokenId);
   }
 
-  function changeLockerOwner(uint256 _idx, address _newOwner) external {
+  function changeLockerOwner(uint16 _idx, address _newOwner) external {
     Locker storage _locker = lockers[_idx];
     require(
       _locker.owner == msg.sender,
@@ -155,7 +156,7 @@ contract MTGYTokenLocker is Ownable {
     _locker.owner = _newOwner;
   }
 
-  function changeLockerEndTime(uint256 _idx, uint256 _newEnd) external {
+  function changeLockerEndTime(uint16 _idx, uint48 _newEnd) external {
     Locker storage _locker = lockers[_idx];
     require(
       _locker.owner == msg.sender,
@@ -177,7 +178,7 @@ contract MTGYTokenLocker is Ownable {
     mtgyServiceCost = _newCost;
   }
 
-  function maxWithdrawableTokens(uint256 _idx) public returns (uint256) {
+  function maxWithdrawableTokens(uint16 _idx) public view returns (uint256) {
     Locker memory _locker = lockers[_idx];
     uint256 _fullLockPeriodSec = _locker.end.sub(_locker.start);
     uint256 _secondsPerVest = _fullLockPeriodSec.div(_locker.numberVests);
