@@ -86,10 +86,7 @@ const config = {
       'https://data-seed-prebsc-1-s1.binance.org:8545'
     ),
     kcc: createConfig('kcc', 'https://rpc-mainnet.kcc.network'),
-    polygon: createConfig(
-      'polygon',
-      'https://matic-mainnet.chainstacklabs.com'
-    ),
+    polygon: createConfig('polygon', 'https://polygon-rpc.com'),
     mainnet: createConfig('mainnet'),
     goerli: createConfig('goerli'),
     kovan: createConfig('kovan'),

@@ -107,6 +107,7 @@ contract MTGYAtomicSwap is Ownable {
   function updateSwapContract(
     uint256 _createdBlockTimestamp,
     address _sourceContract,
+    string memory _targetNetwork,
     address _targetContract,
     bool _isActive
   ) external {
@@ -126,13 +127,16 @@ contract MTGYAtomicSwap is Ownable {
       abi.encodePacked(swapCont.creator, _createdBlockTimestamp)
     );
     require(
+      address(0) != _targetContract,
+      'target contract cannot be 0 address'
+    );
+    require(
       swapCont.id == _id && swapContInd.id == _id,
       "we don't recognize the info you sent with the swap"
     );
 
-    swapCont.targetContract = address(0) != _targetContract
-      ? _targetContract
-      : swapCont.targetContract;
+    swapCont.targetNetwork = _targetNetwork;
+    swapCont.targetContract = _targetContract;
     swapCont.isActive = _isActive;
     swapContInd.targetContract = swapCont.targetContract;
     swapContInd.isActive = _isActive;
