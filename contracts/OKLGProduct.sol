@@ -32,15 +32,15 @@ contract OKLGProduct is Ownable {
     productID = _newId;
   }
 
-  function getTokenAddress() external view returns (address) {
+  function getTokenAddress() public view returns (address) {
     return address(_token);
   }
 
-  function getSpendAddress() external view returns (address) {
+  function getSpendAddress() public view returns (address) {
     return address(_spend);
   }
 
-  function _payForService(bool _paymentInETH) private {
+  function _payForService(bool _paymentInETH) internal {
     _spend.spendOnProduct(msg.sender, productID, _paymentInETH);
   }
 }

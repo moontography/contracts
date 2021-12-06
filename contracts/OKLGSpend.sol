@@ -19,6 +19,7 @@ contract OKLGSpend is Ownable {
   mapping(uint8 => uint256) public defaultProductPriceETH;
   mapping(address => uint256) public overrideProductPriceTokens;
   mapping(address => uint256) public overrideProductPriceETH;
+  mapping(address => bool) public removeCost;
 
   event SpendTokens(
     address indexed user,
@@ -71,6 +72,13 @@ contract OKLGSpend is Ownable {
     overrideProductPriceETH[_productCont] = _priceETH;
   }
 
+  function setRemoveCost(address _productCont, bool _isRemoved)
+    external
+    onlyOwner
+  {
+    removeCost[_productCont] = _isRemoved;
+  }
+
   /**
    * spendOnProduct: used by an OKLG product for a user to spend their tokens on usage of a product
    */
@@ -78,7 +86,9 @@ contract OKLGSpend is Ownable {
     address _payor,
     uint8 _product,
     bool _isETH
-  ) external {
+  ) external payable {
+    if (removeCost[msg.sender]) return;
+
     if (_isETH) {
       uint256 _productCostETH = overrideProductPriceETH[msg.sender] > 0
         ? overrideProductPriceETH[msg.sender]

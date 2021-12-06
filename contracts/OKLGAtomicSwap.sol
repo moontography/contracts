@@ -2,15 +2,14 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
-import './MTGYSpend.sol';
-import './MTGYAtomicSwapInstance.sol';
+import './OKLGProduct.sol';
+import './OKLGAtomicSwapInstance.sol';
 
 /**
- * @title MTGYAtomicSwap
- * @dev This is the main contract that supports holding metadata for MTGY atomic inter and intrachain swapping
+ * @title OKLGAtomicSwap
+ * @dev This is the main contract that supports holding metadata for OKLG atomic inter and intrachain swapping
  */
-contract MTGYAtomicSwap is Ownable {
+contract OKLGAtomicSwap is OKLGProduct {
   struct TargetSwapInfo {
     bytes32 id;
     uint256 timestamp;
@@ -22,10 +21,6 @@ contract MTGYAtomicSwap is Ownable {
     bool isActive;
   }
 
-  IERC20 private _mtgy;
-  MTGYSpend private _spend;
-
-  uint256 public mtgyServiceCost = 25000 * 10**18;
   uint256 public swapCreationGasLoadAmount = 1 * 10**16; // 10 finney (0.01 ether)
   address payable public oracleAddress;
 
@@ -44,12 +39,10 @@ contract MTGYAtomicSwap is Ownable {
   // );
 
   constructor(
-    address _mtgyAddress,
-    address _mtgySpendAddress,
+    address _tokenAddress,
+    address _spendAddress,
     address _oracleAddress
-  ) {
-    _mtgy = IERC20(_mtgyAddress);
-    _spend = MTGYSpend(_mtgySpendAddress);
+  ) OKLGProduct(_tokenAddress, _spendAddress) {
     oracleAddress = payable(_oracleAddress);
   }
 
@@ -72,28 +65,12 @@ contract MTGYAtomicSwap is Ownable {
     oracleAddress = payable(_oracleAddress);
     if (_changeAll) {
       for (uint256 _i = 0; _i < targetSwapContracts.length; _i++) {
-        MTGYAtomicSwapInstance _contract = MTGYAtomicSwapInstance(
+        OKLGAtomicSwapInstance _contract = OKLGAtomicSwapInstance(
           targetSwapContracts[_i].sourceContract
         );
         _contract.changeOracleAddress(oracleAddress);
       }
     }
-  }
-
-  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
-    _mtgy = IERC20(_tokenAddy);
-  }
-
-  function changeSpendAddress(address _spendAddress) external onlyOwner {
-    _spend = MTGYSpend(_spendAddress);
-  }
-
-  /**
-   * @dev If the price of MTGY changes significantly, need to be able to adjust price
-   * to keep cost appropriate for providing the service
-   */
-  function changeMtgyServiceCost(uint256 _newCost) external onlyOwner {
-    mtgyServiceCost = _newCost;
   }
 
   function getAllSwapContracts()
@@ -147,19 +124,18 @@ contract MTGYAtomicSwap is Ownable {
     uint256 _tokenSupply,
     uint256 _maxSwapAmount,
     string memory _targetNetwork,
-    address _targetContract
+    address _targetContract,
+    bool _paymentInETH
   ) external payable returns (uint256, address) {
     require(
       msg.value >= swapCreationGasLoadAmount,
       'Going to ask the user to fill up the atomic swap contract with some gas'
     );
-    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgy.approve(address(_spend), mtgyServiceCost);
-    _spend.spendOnProduct(mtgyServiceCost);
+    _payForService(_paymentInETH);
 
-    MTGYAtomicSwapInstance _contract = new MTGYAtomicSwapInstance(
-      address(_mtgy),
-      address(_spend),
+    OKLGAtomicSwapInstance _contract = new OKLGAtomicSwapInstance(
+      getTokenAddress(),
+      getSpendAddress(),
       oracleAddress,
       msg.sender,
       _tokenAddy,
@@ -168,7 +144,7 @@ contract MTGYAtomicSwap is Ownable {
     oracleAddress.transfer(msg.value);
     IERC20 _token = IERC20(_tokenAddy);
     _token.transferFrom(msg.sender, address(_contract), _tokenSupply);
-    _contract.updateSupply();
+    _contract.setSupply();
     _contract.transferOwnership(oracleAddress);
 
     uint256 _ts = block.timestamp;

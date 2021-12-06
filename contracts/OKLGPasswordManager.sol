@@ -1,24 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import './MTGYSpend.sol';
+import './OKLGProduct.sol';
 
 /**
- * @title MTGYPasswordManager
+ * @title OKLGPasswordManager
  * @dev Logic for storing and retrieving account information from the blockchain.
  */
-contract MTGYPasswordManager is Ownable {
+contract OKLGPasswordManager is OKLGProduct {
   using SafeMath for uint256;
-
-  IERC20 private _mtgy;
-  MTGYSpend private _mtgySpend;
-
-  address public mtgyTokenAddy;
-  address public mtgySpendAddy;
-  uint256 public mtgyServiceCost = 100 * 10**18;
 
   struct AccountInfo {
     string id;
@@ -31,26 +23,9 @@ contract MTGYPasswordManager is Ownable {
   // the normal mapping of all accounts owned by a user
   mapping(address => AccountInfo[]) public userAccounts;
 
-  constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
-    mtgyTokenAddy = _mtgyTokenAddy;
-    mtgySpendAddy = _mtgySpendAddy;
-    _mtgy = IERC20(_mtgyTokenAddy);
-    _mtgySpend = MTGYSpend(_mtgySpendAddy);
-  }
-
-  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
-    mtgyTokenAddy = _tokenAddy;
-    _mtgy = IERC20(_tokenAddy);
-  }
-
-  function changeMtgySpendAddy(address _spendAddy) external onlyOwner {
-    mtgySpendAddy = _spendAddy;
-    _mtgySpend = MTGYSpend(_spendAddy);
-  }
-
-  function changeServiceCost(uint256 _newCost) external onlyOwner {
-    mtgyServiceCost = _newCost;
-  }
+  constructor(address _tokenAddress, address _spendAddress)
+    OKLGProduct(_tokenAddress, _spendAddress)
+  {}
 
   function getAllAccounts(address _userAddy)
     external
@@ -101,11 +76,11 @@ contract MTGYPasswordManager is Ownable {
   function addAccount(
     string memory _id,
     string memory _iv,
-    string memory _ciphertext
+    string memory _ciphertext,
+    bool _paymentInETH
   ) external {
-    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
-    _mtgySpend.spendOnProduct(mtgyServiceCost);
+    _payForService(_paymentInETH);
+
     userAccounts[msg.sender].push(
       AccountInfo({
         id: _id,
@@ -117,15 +92,15 @@ contract MTGYPasswordManager is Ownable {
     );
   }
 
-  function bulkAddAccounts(AccountInfo[] memory accounts) external {
+  function bulkAddAccounts(AccountInfo[] memory accounts, bool _paymentInETH)
+    external
+  {
     require(
       accounts.length >= 5,
       'you need a minimum of 5 accounts to add in bulk at a 50% discount service cost'
     );
-    uint256 _serviceCostAdjusted = mtgyServiceCost.mul(accounts.length).div(2);
-    _mtgy.transferFrom(msg.sender, address(this), _serviceCostAdjusted);
-    _mtgy.approve(mtgySpendAddy, _serviceCostAdjusted);
-    _mtgySpend.spendOnProduct(_serviceCostAdjusted);
+    _payForService(_paymentInETH);
+
     for (uint256 _i = 0; _i < accounts.length; _i++) {
       AccountInfo memory _account = accounts[_i];
       userAccounts[msg.sender].push(

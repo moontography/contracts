@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import './interfaces/IOKLGSpend.sol';
-import './OKLGProduct';
+import './OKLGProduct.sol';
 
 /**
  * @title OKLGAirdropper

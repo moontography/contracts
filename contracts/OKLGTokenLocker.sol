@@ -5,13 +5,13 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import './MTGYSpend.sol';
+import './OKLGProduct.sol';
 
 /**
  * @title MTGYTokenLocker
  * @dev This is the main contract that supports locking/vesting tokens.
  */
-contract MTGYTokenLocker is Ownable {
+contract MTGYTokenLocker is OKLGProduct {
   using SafeMath for uint48;
   using SafeMath for uint256;
 
@@ -31,11 +31,6 @@ contract MTGYTokenLocker is Ownable {
     uint8 numberVests;
   }
 
-  IERC20 private _mtgy;
-  MTGYSpend private _spend;
-
-  uint256 public mtgyServiceCost = 5000 * 10**18;
-
   mapping(address => uint16[]) public lockersByOwner;
   mapping(address => uint16[]) public lockersByToken;
   mapping(address => uint16[]) public lockersByWithdrawable;
@@ -48,10 +43,9 @@ contract MTGYTokenLocker is Ownable {
     uint256 numTokensOrTokenId
   );
 
-  constructor(address _mtgyAddress, address _mtgySpendAddress) {
-    _mtgy = IERC20(_mtgyAddress);
-    _spend = MTGYSpend(_mtgySpendAddress);
-  }
+  constructor(address _tokenAddress, address _spendAddress)
+    OKLGProduct(_tokenAddress, _spendAddress)
+  {}
 
   function getAllLockers() external view returns (Locker[] memory) {
     return lockers;
@@ -63,18 +57,15 @@ contract MTGYTokenLocker is Ownable {
     uint48 _end,
     uint8 _numberVests,
     address[] memory _withdrawableAddresses,
-    bool _isNft
+    bool _isNft,
+    bool _paymentInETH
   ) external {
     require(
       _end > block.timestamp,
       'Locker end date must be after current time.'
     );
 
-    if (mtgyServiceCost > 0) {
-      _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-      _mtgy.approve(address(_spend), mtgyServiceCost);
-      _spend.spendOnProduct(mtgyServiceCost);
-    }
+    _payForService(_paymentInETH);
 
     if (_isNft) {
       IERC721 _token = IERC721(_tokenAddress);
@@ -164,18 +155,6 @@ contract MTGYTokenLocker is Ownable {
     );
     require(_newEnd > _locker.end, 'Can only extend end time, not shorten it.');
     _locker.end = _newEnd;
-  }
-
-  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
-    _mtgy = IERC20(_tokenAddy);
-  }
-
-  function changeSpendAddress(address _spendAddress) external onlyOwner {
-    _spend = MTGYSpend(_spendAddress);
-  }
-
-  function changeMtgyServiceCost(uint256 _newCost) external onlyOwner {
-    mtgyServiceCost = _newCost;
   }
 
   function maxWithdrawableTokens(uint16 _idx) public view returns (uint256) {

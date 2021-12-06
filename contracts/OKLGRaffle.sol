@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
-import './MTGYSpend.sol';
+import './OKLGProduct.sol';
 
 /**
- * @title MTGYRaffle
+ * @title OKLGRaffle
  * @dev This is the main contract that supports lotteries and raffles.
  */
-contract MTGYRaffle is Ownable {
+contract OKLGRaffle is OKLGProduct {
   struct Raffle {
     address owner;
     bool isNft; // rewardToken is either ERC20 or ERC721
@@ -28,10 +27,6 @@ contract MTGYRaffle is Ownable {
     bool isClosed;
   }
 
-  IERC20 private _mtgy;
-  MTGYSpend private _spend;
-
-  uint256 public mtgyServiceCost = 5000 * 10**18;
   uint8 public entryFeePercentageCharge = 2;
 
   mapping(bytes32 => Raffle) public raffles;
@@ -47,10 +42,9 @@ contract MTGYRaffle is Ownable {
   event DrawWinner(bytes32 indexed id, address winner);
   event CloseRaffle(bytes32 indexed id);
 
-  constructor(address _mtgyAddress, address _mtgySpendAddress) {
-    _mtgy = IERC20(_mtgyAddress);
-    _spend = MTGYSpend(_mtgySpendAddress);
-  }
+  constructor(address _tokenAddress, address _spendAddress)
+    OKLGProduct(_tokenAddress, _spendAddress)
+  {}
 
   function getAllRaffles() external view returns (bytes32[] memory) {
     return raffleIds;
@@ -72,13 +66,11 @@ contract MTGYRaffle is Ownable {
     uint256 _end,
     address _entryToken,
     uint256 _entryFee,
-    uint256 _maxEntriesPerAddress
+    uint256 _maxEntriesPerAddress,
+    bool _paymentInETH
   ) external {
     _validateDates(_start, _end);
-
-    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgy.approve(address(_spend), mtgyServiceCost);
-    _spend.spendOnProduct(mtgyServiceCost);
+    _payForService(_paymentInETH);
 
     if (_isNft) {
       IERC721 _rewardToken = IERC721(_rewardTokenAddress);
@@ -263,18 +255,6 @@ contract MTGYRaffle is Ownable {
     );
 
     _raffle.end = _newEnd;
-  }
-
-  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
-    _mtgy = IERC20(_tokenAddy);
-  }
-
-  function changeSpendAddress(address _spendAddress) external onlyOwner {
-    _spend = MTGYSpend(_spendAddress);
-  }
-
-  function changeMtgyServiceCost(uint256 _newCost) external onlyOwner {
-    mtgyServiceCost = _newCost;
   }
 
   function changeEntryFeePercentageCharge(uint8 _newPercentage)
