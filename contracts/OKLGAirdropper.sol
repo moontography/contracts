@@ -1,55 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
-import './MTGYSpend.sol';
+import './interfaces/IOKLGSpend.sol';
+import './OKLGProduct';
 
 /**
- * @title MTGYAirdropper
+ * @title OKLGAirdropper
  * @dev Allows sending ERC20 or ERC721 tokens to multiple addresses
  */
-contract MTGYAirdropper is Ownable {
-  IERC20 private _mtgy;
-  MTGYSpend private _mtgySpend;
-
-  address public mtgyTokenAddy;
-  address public mtgySpendAddy;
-  uint256 public mtgyServiceCost = 5000 * 10**18;
-
+contract OKLGAirdropper is OKLGProduct {
   struct Receiver {
     address userAddress;
     uint256 amountOrTokenId;
   }
 
-  constructor(address _mtgyTokenAddy, address _mtgySpendAddy) {
-    mtgyTokenAddy = _mtgyTokenAddy;
-    mtgySpendAddy = _mtgySpendAddy;
-    _mtgy = IERC20(_mtgyTokenAddy);
-    _mtgySpend = MTGYSpend(_mtgySpendAddy);
-  }
+  constructor(address _tokenAddy, address _spendContractAddy)
+    OKLGProduct(_tokenAddy, _spendContractAddy)
+  {}
 
-  function changeMtgyTokenAddy(address _tokenAddy) external onlyOwner {
-    mtgyTokenAddy = _tokenAddy;
-    _mtgy = IERC20(_tokenAddy);
-  }
-
-  function changeMtgySpendAddy(address _spendAddy) external onlyOwner {
-    mtgySpendAddy = _spendAddy;
-    _mtgySpend = MTGYSpend(_spendAddy);
-  }
-
-  function changeServiceCost(uint256 _newCost) external onlyOwner {
-    mtgyServiceCost = _newCost;
-  }
-
-  function bulkSendMainTokens(Receiver[] memory _addressesAndAmounts)
-    external
-    payable
-    returns (bool)
-  {
-    _payForService();
+  function bulkSendMainTokens(
+    bool _paymentInETH,
+    Receiver[] memory _addressesAndAmounts
+  ) external payable returns (bool) {
+    _payForService(_paymentInETH);
 
     bool _wasSent = true;
 
@@ -64,10 +39,11 @@ contract MTGYAirdropper is Ownable {
   }
 
   function bulkSendErc20Tokens(
+    bool _paymentInETH,
     address _tokenAddress,
     Receiver[] memory _addressesAndAmounts
   ) external returns (bool) {
-    _payForService();
+    _payForService(_paymentInETH);
 
     IERC20 _token = IERC20(_tokenAddress);
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
@@ -78,10 +54,11 @@ contract MTGYAirdropper is Ownable {
   }
 
   function bulkSendErc721Tokens(
+    bool _paymentInETH,
     address _tokenAddress,
     Receiver[] memory _addressesAndAmounts
   ) external returns (bool) {
-    _payForService();
+    _payForService(_paymentInETH);
 
     IERC721 _token = IERC721(_tokenAddress);
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
@@ -89,11 +66,5 @@ contract MTGYAirdropper is Ownable {
       _token.transferFrom(msg.sender, _user.userAddress, _user.amountOrTokenId);
     }
     return true;
-  }
-
-  function _payForService() private {
-    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgy.approve(mtgySpendAddy, mtgyServiceCost);
-    _mtgySpend.spendOnProduct(mtgyServiceCost);
   }
 }

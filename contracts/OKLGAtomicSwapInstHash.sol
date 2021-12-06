@@ -2,10 +2,10 @@
 pragma solidity ^0.8.4;
 
 /**
- * @title MTGYAtomicSwapInstHash
- * @dev Hash an address, timestamp, amount like that happens in MTGYAtomicSwapInstance.sol
+ * @title OKLGAtomicSwapInstHash
+ * @dev Hash an address, timestamp, amount like that happens in OKLGAtomicSwapInstance.sol
  */
-contract MTGYAtomicSwapInstHash {
+contract OKLGAtomicSwapInstHash {
   function hash(
     address _addy,
     uint256 _ts,
