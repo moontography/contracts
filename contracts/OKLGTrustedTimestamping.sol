@@ -29,7 +29,7 @@ contract OKLGTrustedTimestamping is OKLGProduct {
   event StoreHash(address from, bytes32 dataHash);
 
   constructor(address _tokenAddress, address _pendAddress)
-    OKLGProduct(_tokenAddress, _pendAddress)
+    OKLGProduct(uint8(3), _tokenAddress, _pendAddress)
   {}
 
   /**
@@ -38,10 +38,9 @@ contract OKLGTrustedTimestamping is OKLGProduct {
   function storeHash(
     bytes32 dataHash,
     string memory fileName,
-    uint256 fileSizeBytes,
-    bool _paymentInETH
+    uint256 fileSizeBytes
   ) external {
-    _payForService(_paymentInETH);
+    _payForService();
 
     uint256 theTimeNow = block.timestamp;
     addressHashes[msg.sender].push(

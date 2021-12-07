@@ -6,9 +6,5 @@ pragma solidity ^0.8.4;
  * @dev Logic for spending OKLG on products in the product ecosystem.
  */
 interface IOKLGSpend {
-  function spendOnProduct(
-    address _payor,
-    uint8 _product,
-    bool _isETH
-  ) external;
+  function spendOnProduct(address _payor, uint8 _product) external payable;
 }

@@ -7,11 +7,10 @@ import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
 /**
- * @title MTGYFaaSToken (sMTGY)
- * @author Lance Whatley
+ * @title OKLGFaaSToken (sOKLG)
  * @notice Represents a contract where a token owner has put her tokens up for others to stake and earn said tokens.
  */
-contract MTGYFaaSToken is ERC20 {
+contract OKLGFaaSToken is ERC20 {
   using SafeMath for uint256;
   bool public contractIsRemoved = false;
 

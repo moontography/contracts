@@ -44,7 +44,7 @@ contract MTGYTokenLocker is OKLGProduct {
   );
 
   constructor(address _tokenAddress, address _spendAddress)
-    OKLGProduct(_tokenAddress, _spendAddress)
+    OKLGProduct(uint8(5), _tokenAddress, _spendAddress)
   {}
 
   function getAllLockers() external view returns (Locker[] memory) {
@@ -57,15 +57,14 @@ contract MTGYTokenLocker is OKLGProduct {
     uint48 _end,
     uint8 _numberVests,
     address[] memory _withdrawableAddresses,
-    bool _isNft,
-    bool _paymentInETH
+    bool _isNft
   ) external {
     require(
       _end > block.timestamp,
       'Locker end date must be after current time.'
     );
 
-    _payForService(_paymentInETH);
+    _payForService();
 
     if (_isNft) {
       IERC721 _token = IERC721(_tokenAddress);

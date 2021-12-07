@@ -61,7 +61,7 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     address _tokenOwner,
     address _tokenAddy,
     uint256 _maxSwapAmount
-  ) OKLGProduct(_costToken, _spendAddress) {
+  ) OKLGProduct(uint8(7), _costToken, _spendAddress) {
     oracleAddress = _oracleAddress;
     tokenOwner = _tokenOwner;
     maxSwapAmount = _maxSwapAmount;
@@ -141,7 +141,7 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       'trying to send more than maxSwapAmount'
     );
 
-    _payForService(false);
+    _payForService();
 
     payable(oracleAddress).transfer(msg.value);
     _token.transferFrom(msg.sender, address(this), _amount);

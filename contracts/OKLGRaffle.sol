@@ -43,7 +43,7 @@ contract OKLGRaffle is OKLGProduct {
   event CloseRaffle(bytes32 indexed id);
 
   constructor(address _tokenAddress, address _spendAddress)
-    OKLGProduct(_tokenAddress, _spendAddress)
+    OKLGProduct(uint8(4), _tokenAddress, _spendAddress)
   {}
 
   function getAllRaffles() external view returns (bytes32[] memory) {
@@ -66,11 +66,10 @@ contract OKLGRaffle is OKLGProduct {
     uint256 _end,
     address _entryToken,
     uint256 _entryFee,
-    uint256 _maxEntriesPerAddress,
-    bool _paymentInETH
+    uint256 _maxEntriesPerAddress
   ) external {
     _validateDates(_start, _end);
-    _payForService(_paymentInETH);
+    _payForService();
 
     if (_isNft) {
       IERC721 _rewardToken = IERC721(_rewardTokenAddress);

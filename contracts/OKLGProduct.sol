@@ -1,21 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import './interfaces/IOKLGSpend.sol';
+import './OKLGWithdrawable.sol';
 
 /**
  * @title OKLGProduct
  * @dev Contract that every product developed in the OKLG ecosystem should implement
  */
-contract OKLGProduct is Ownable {
-  IERC20 private _token;
+contract OKLGProduct is OKLGWithdrawable {
+  IERC20 private _token; // OKLG
   IOKLGSpend private _spend;
 
   uint8 public productID;
 
-  constructor(address _tokenAddy, address _spendAddy) {
+  constructor(
+    uint8 _productID,
+    address _tokenAddy,
+    address _spendAddy
+  ) {
+    productID = _productID;
     _token = IERC20(_tokenAddy);
     _spend = IOKLGSpend(_spendAddy);
   }
@@ -40,7 +45,7 @@ contract OKLGProduct is Ownable {
     return address(_spend);
   }
 
-  function _payForService(bool _paymentInETH) internal {
-    _spend.spendOnProduct(msg.sender, productID, _paymentInETH);
+  function _payForService() internal {
+    _spend.spendOnProduct(msg.sender, productID);
   }
 }

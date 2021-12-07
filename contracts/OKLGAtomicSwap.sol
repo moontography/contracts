@@ -42,7 +42,7 @@ contract OKLGAtomicSwap is OKLGProduct {
     address _tokenAddress,
     address _spendAddress,
     address _oracleAddress
-  ) OKLGProduct(_tokenAddress, _spendAddress) {
+  ) OKLGProduct(uint8(6), _tokenAddress, _spendAddress) {
     oracleAddress = payable(_oracleAddress);
   }
 
@@ -124,14 +124,13 @@ contract OKLGAtomicSwap is OKLGProduct {
     uint256 _tokenSupply,
     uint256 _maxSwapAmount,
     string memory _targetNetwork,
-    address _targetContract,
-    bool _paymentInETH
+    address _targetContract
   ) external payable returns (uint256, address) {
     require(
       msg.value >= swapCreationGasLoadAmount,
       'Going to ask the user to fill up the atomic swap contract with some gas'
     );
-    _payForService(_paymentInETH);
+    _payForService();
 
     OKLGAtomicSwapInstance _contract = new OKLGAtomicSwapInstance(
       getTokenAddress(),

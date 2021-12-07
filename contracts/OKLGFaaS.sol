@@ -1,22 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
-import './MTGYFaaSToken.sol';
-import './MTGYSpend.sol';
+import './OKLGFaaSToken.sol';
+import './OKLGProduct.sol';
 
 /**
- * @title MTGYFaaS (sMTGY)
+ * @title OKLGFaaS (sOKLG)
  * @author Lance Whatley
  * @notice Implements the master FaaS contract to keep track of all tokens being added
  * to be staked and staking.
  */
-contract MTGYFaaS is Ownable {
-  ERC20 private _mtgy;
-  MTGYSpend private _spend;
-
-  uint256 public mtgyServiceCost = 100000 * 10**18;
-
+contract OKLGFaaS is OKLGProduct {
   // this is a mapping of tokenAddress => contractAddress[] that represents
   // a particular address for the token that someone has put up
   // to be staked and a list of contract addresses for the staking token
@@ -28,10 +22,9 @@ contract MTGYFaaS is Ownable {
   /**
    * @notice The constructor for the staking master contract.
    */
-  constructor(address _mtgyAddress, address _mtgySpendAddress) {
-    _mtgy = ERC20(_mtgyAddress);
-    _spend = MTGYSpend(_mtgySpendAddress);
-  }
+  constructor(address _tokenAddress, address _spendAddress)
+    OKLGProduct(uint8(8), _tokenAddress, _spendAddress)
+  {}
 
   function getAllFarmingContracts() external view returns (address[] memory) {
     return allFarmingContracts;
@@ -45,10 +38,6 @@ contract MTGYFaaS is Ownable {
     return tokensUpForStaking[_tokenAddress];
   }
 
-  function changeServiceCost(uint256 newCost) external onlyOwner {
-    mtgyServiceCost = newCost;
-  }
-
   function createNewTokenContract(
     address _rewardsTokenAddy,
     address _stakedTokenAddy,
@@ -58,12 +47,9 @@ contract MTGYFaaS is Ownable {
     uint256 _timelockSeconds,
     bool _isStakedNft
   ) external {
-    // pay the MTGY fee for using MTGYFaaS
-    _mtgy.transferFrom(msg.sender, address(this), mtgyServiceCost);
-    _mtgy.approve(address(_spend), mtgyServiceCost);
-    _spend.spendOnProduct(mtgyServiceCost);
+    _payForService();
 
-    // create new MTGYFaaSToken contract which will serve as the core place for
+    // create new OKLGFaaSToken contract which will serve as the core place for
     // users to stake their tokens and earn rewards
     ERC20 _rewToken = ERC20(_rewardsTokenAddy);
 
@@ -77,9 +63,9 @@ contract MTGYFaaS is Ownable {
       ? _supply
       : _rewToken.balanceOf(address(this));
 
-    MTGYFaaSToken _contract = new MTGYFaaSToken(
+    OKLGFaaSToken _contract = new OKLGFaaSToken(
       'Moontography Staking Token',
-      'sMTGY',
+      'sOKLG',
       _updatedSupply,
       _rewardsTokenAddy,
       _stakedTokenAddy,
@@ -107,7 +93,7 @@ contract MTGYFaaS is Ownable {
   }
 
   function removeTokenContract(address _faasTokenAddy) external {
-    MTGYFaaSToken _contract = MTGYFaaSToken(_faasTokenAddy);
+    OKLGFaaSToken _contract = OKLGFaaSToken(_faasTokenAddy);
     require(
       msg.sender == _contract.tokenOwner(),
       'user must be the original token owner to remove tokens'
