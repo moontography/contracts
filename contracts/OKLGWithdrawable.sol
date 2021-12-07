@@ -19,7 +19,7 @@ contract OKLGWithdrawable is Ownable {
     _token.transfer(owner(), _amount);
   }
 
-  function emergencyWithdraw() external onlyOwner {
+  function withdrawETH() external onlyOwner {
     payable(owner()).send(address(this).balance);
   }
 }

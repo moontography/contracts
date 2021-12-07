@@ -35,8 +35,8 @@ contract OKLGSpend is IOKLGSpend, OKLGWithdrawable {
     _paymentToken = IERC20(_tokenAddy);
   }
 
-  function setDestWallet(address _newDestWallet) external onlyOwner {
-    targetWallet = payable(_newDestWallet);
+  function setTargetWallet(address _newTargetWallet) external onlyOwner {
+    targetWallet = payable(_newTargetWallet);
   }
 
   function setDefaultProductETHPrice(uint8 _product, uint256 _priceETH)
@@ -99,6 +99,9 @@ contract OKLGSpend is IOKLGSpend, OKLGWithdrawable {
     uint256 _productCostETH = overrideProductPriceETH[msg.sender] > 0
       ? overrideProductPriceETH[msg.sender]
       : defaultProductPriceETH[_product];
+
+    if (_productCostETH == 0) return;
+
     require(
       msg.value >= _productCostETH,
       'not enough ETH sent to pay for product'
