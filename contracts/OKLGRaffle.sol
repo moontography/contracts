@@ -39,7 +39,7 @@ contract OKLGRaffle is OKLGProduct {
     address raffler,
     uint256 numberOfEntries
   );
-  event DrawWinner(bytes32 indexed id, address winner);
+  event DrawWinner(bytes32 indexed id, address winner, uint256 amount);
   event CloseRaffle(bytes32 indexed id);
 
   constructor(address _tokenAddress, address _spendAddress)
@@ -112,10 +112,6 @@ contract OKLGRaffle is OKLGProduct {
   function drawWinner(bytes32 _id) external {
     Raffle storage _raffle = raffles[_id];
     require(
-      _raffle.owner == msg.sender,
-      'Must be the raffle owner to draw winner.'
-    );
-    require(
       _raffle.end == 0 || block.timestamp > _raffle.end,
       'Raffle entry period is not over yet.'
     );
@@ -154,7 +150,7 @@ contract OKLGRaffle is OKLGProduct {
     }
 
     _raffle.isComplete = true;
-    emit DrawWinner(_id, _winner);
+    emit DrawWinner(_id, _winner, _raffle.rewardAmountOrTokenId);
   }
 
   function closeRaffleAndRefund(bytes32 _id) external {
