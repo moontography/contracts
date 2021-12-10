@@ -45,7 +45,10 @@ contract OKLGProduct is OKLGWithdrawable {
     return address(_spend);
   }
 
-  function _payForService() internal {
-    _spend.spendOnProduct(msg.sender, productID);
+  function _payForService(uint256 _weiToRemoveFromSpend) internal {
+    _spend.spendOnProduct{ value: msg.value - _weiToRemoveFromSpend }(
+      msg.sender,
+      productID
+    );
   }
 }

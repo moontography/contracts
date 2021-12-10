@@ -46,8 +46,8 @@ contract OKLGFaaS is OKLGProduct {
     uint256 _lockedUntilDate,
     uint256 _timelockSeconds,
     bool _isStakedNft
-  ) external {
-    _payForService();
+  ) external payable {
+    _payForService(0);
 
     // create new OKLGFaaSToken contract which will serve as the core place for
     // users to stake their tokens and earn rewards

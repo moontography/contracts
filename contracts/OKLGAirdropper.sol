@@ -25,7 +25,7 @@ contract OKLGAirdropper is OKLGProduct {
     payable
     returns (bool)
   {
-    _payForService();
+    _payForService(0);
 
     bool _wasSent = true;
 
@@ -42,8 +42,8 @@ contract OKLGAirdropper is OKLGProduct {
   function bulkSendErc20Tokens(
     address _tokenAddress,
     Receiver[] memory _addressesAndAmounts
-  ) external returns (bool) {
-    _payForService();
+  ) external payable returns (bool) {
+    _payForService(0);
 
     IERC20 _token = IERC20(_tokenAddress);
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
@@ -56,8 +56,8 @@ contract OKLGAirdropper is OKLGProduct {
   function bulkSendErc721Tokens(
     address _tokenAddress,
     Receiver[] memory _addressesAndAmounts
-  ) external returns (bool) {
-    _payForService();
+  ) external payable returns (bool) {
+    _payForService(0);
 
     IERC721 _token = IERC721(_tokenAddress);
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {

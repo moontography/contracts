@@ -141,7 +141,7 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       'trying to send more than maxSwapAmount'
     );
 
-    _payForService();
+    _payForService(0);
 
     payable(oracleAddress).transfer(msg.value);
     _token.transferFrom(msg.sender, address(this), _amount);

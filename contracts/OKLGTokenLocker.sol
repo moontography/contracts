@@ -58,13 +58,13 @@ contract MTGYTokenLocker is OKLGProduct {
     uint8 _numberVests,
     address[] memory _withdrawableAddresses,
     bool _isNft
-  ) external {
+  ) external payable {
     require(
       _end > block.timestamp,
       'Locker end date must be after current time.'
     );
 
-    _payForService();
+    _payForService(0);
 
     if (_isNft) {
       IERC721 _token = IERC721(_tokenAddress);

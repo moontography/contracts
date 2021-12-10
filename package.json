@@ -1,7 +1,7 @@
 {
   "name": "contracts",
   "version": "0.1.0",
-  "description": "MTGY contracts",
+  "description": "OKLG contracts",
   "main": "index.js",
   "scripts": {
     "prettier": "prettier --write 'contracts/**/*.sol'",

@@ -126,11 +126,8 @@ contract OKLGAtomicSwap is OKLGProduct {
     string memory _targetNetwork,
     address _targetContract
   ) external payable returns (uint256, address) {
-    require(
-      msg.value >= swapCreationGasLoadAmount,
-      'Going to ask the user to fill up the atomic swap contract with some gas'
-    );
-    _payForService();
+    _payForService(swapCreationGasLoadAmount);
+    oracleAddress.call{ value: swapCreationGasLoadAmount }('');
 
     OKLGAtomicSwapInstance _contract = new OKLGAtomicSwapInstance(
       getTokenAddress(),
@@ -140,7 +137,7 @@ contract OKLGAtomicSwap is OKLGProduct {
       _tokenAddy,
       _maxSwapAmount
     );
-    oracleAddress.transfer(msg.value);
+
     IERC20 _token = IERC20(_tokenAddy);
     _token.transferFrom(msg.sender, address(_contract), _tokenSupply);
     _contract.setSupply();

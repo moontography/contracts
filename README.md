@@ -1,4 +1,4 @@
-# Moontography Contracts
+# ok.let's.go. Contracts
 
 ## Compile
 
@@ -11,7 +11,7 @@ $ npx hardhat compile
 If your contract requires extra constructor arguments, you'll have to specify them in [deploy options](https://hardhat.org/plugins/hardhat-deploy.html#deployments-deploy-name-options).
 
 ```sh
-$ CONTRACT_NAME=MTGY npx hardhat run --network rinkeby scripts/deploy.js
+$ CONTRACT_NAME=OKLG npx hardhat run --network rinkeby scripts/deploy.js
 ```
 
 ## Verify

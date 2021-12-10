@@ -77,8 +77,8 @@ contract OKLGPasswordManager is OKLGProduct {
     string memory _id,
     string memory _iv,
     string memory _ciphertext
-  ) external {
-    _payForService();
+  ) external payable {
+    _payForService(0);
 
     userAccounts[msg.sender].push(
       AccountInfo({
@@ -91,12 +91,12 @@ contract OKLGPasswordManager is OKLGProduct {
     );
   }
 
-  function bulkAddAccounts(AccountInfo[] memory accounts) external {
+  function bulkAddAccounts(AccountInfo[] memory accounts) external payable {
     require(
       accounts.length >= 5,
       'you need a minimum of 5 accounts to add in bulk at a 50% discount service cost'
     );
-    _payForService();
+    _payForService(0);
 
     for (uint256 _i = 0; _i < accounts.length; _i++) {
       AccountInfo memory _account = accounts[_i];

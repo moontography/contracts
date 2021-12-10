@@ -39,8 +39,8 @@ contract OKLGTrustedTimestamping is OKLGProduct {
     bytes32 dataHash,
     string memory fileName,
     uint256 fileSizeBytes
-  ) external {
-    _payForService();
+  ) external payable {
+    _payForService(0);
 
     uint256 theTimeNow = block.timestamp;
     addressHashes[msg.sender].push(

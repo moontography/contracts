@@ -67,9 +67,9 @@ contract OKLGRaffle is OKLGProduct {
     address _entryToken,
     uint256 _entryFee,
     uint256 _maxEntriesPerAddress
-  ) external {
+  ) external payable {
     _validateDates(_start, _end);
-    _payForService();
+    _payForService(0);
 
     if (_isNft) {
       IERC721 _rewardToken = IERC721(_rewardTokenAddress);
