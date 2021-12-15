@@ -22,9 +22,9 @@ contract OKLGRewards is OKLGWithdrawable {
 
   address public constant deadAddress =
     0x000000000000000000000000000000000000dEaD;
-  IOKLG private _oklg = IOKLG(0x5dBB9F64cd96E2DbBcA58d14863d615B67B42f2e);
+  IOKLG private _oklg = IOKLG(0x5f67df361f568e185aA0304A57bdE4b8028d059E);
 
-  uint256 public rewardsClaimTimeSeconds = 60 * 60 * 4; // 4 hours
+  uint256 public rewardsClaimTimeSeconds = 60 * 60 * 12; // 12 hours
   mapping(address => uint256) private _rewardsLastClaim;
 
   uint256 public boostRewardsPercent = 50;
@@ -33,6 +33,10 @@ contract OKLGRewards is OKLGWithdrawable {
 
   event SendETHRewards(address to, uint256 amountETH);
   event SendTokenRewards(address to, address token, uint256 amount);
+
+  function ethRewardsBalance() external view returns (uint256) {
+    return address(this).balance;
+  }
 
   function getLastETHRewardsClaim(address wallet)
     external
@@ -57,18 +61,6 @@ contract OKLGRewards is OKLGWithdrawable {
     boostRewardsMultiplierContract = _contract;
   }
 
-  function setBoostRewardsPercent(uint256 _perc) external onlyOwner {
-    boostRewardsPercent = _perc;
-  }
-
-  function getOklgContract() external view returns (address) {
-    return address(_oklg);
-  }
-
-  function setOklgContract(address cont) external onlyOwner {
-    _oklg = IOKLG(cont);
-  }
-
   function setBoostRewardsContract(address _contract) external onlyOwner {
     if (_contract != address(0)) {
       IConditional _contCheck = IConditional(_contract);
@@ -80,6 +72,22 @@ contract OKLGRewards is OKLGWithdrawable {
       );
     }
     boostRewardsContract = _contract;
+  }
+
+  function setBoostRewardsPercent(uint256 _perc) external onlyOwner {
+    boostRewardsPercent = _perc;
+  }
+
+  function setRewardsClaimTimeSeconds(uint256 _seconds) external onlyOwner {
+    rewardsClaimTimeSeconds = _seconds;
+  }
+
+  function setOklgContract(address cont) external onlyOwner {
+    _oklg = IOKLG(cont);
+  }
+
+  function getOklgContract() external view returns (address) {
+    return address(_oklg);
   }
 
   function getBoostMultiplier(address wallet) public view returns (uint256) {
@@ -139,6 +147,10 @@ contract OKLGRewards is OKLGWithdrawable {
       IConditional(boostRewardsContract).passesTest(wallet);
   }
 
+  function resetLastClaim(address _user) external onlyOwner {
+    _rewardsLastClaim[_user] = 0;
+  }
+
   function claimETHRewards() external {
     require(
       _oklg.balanceOf(_msgSender()) > 0,
@@ -151,7 +163,7 @@ contract OKLGRewards is OKLGWithdrawable {
     _rewardsLastClaim[_msgSender()] = block.timestamp;
 
     uint256 rewardsSent = calculateETHRewards(_msgSender());
-    _msgSender().call{ value: rewardsSent }('');
+    payable(_msgSender()).call{ value: rewardsSent }('');
     emit SendETHRewards(_msgSender(), rewardsSent);
   }
 

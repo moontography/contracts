@@ -20,6 +20,6 @@ contract OKLGWithdrawable is Ownable {
   }
 
   function withdrawETH() external onlyOwner {
-    payable(owner()).send(address(this).balance);
+    payable(owner()).call{ value: address(this).balance }('');
   }
 }
