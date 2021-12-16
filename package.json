@@ -4,8 +4,9 @@
   "description": "OKLG contracts",
   "main": "index.js",
   "scripts": {
+    "compile": "npx hardhat compile",
     "prettier": "prettier --write 'contracts/**/*.sol'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx hardhat test"
   },
   "author": "Lance Whatley",
   "license": "MIT",
