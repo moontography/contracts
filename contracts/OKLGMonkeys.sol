@@ -150,7 +150,7 @@ contract OKLGMonkeys is
 
   //-- Public Functions --//
 
-  // Mint token - requires tier and amount
+  // Mint token - requires amount
   function mint(uint256 _amount) external payable whenOwnerOrSaleActive {
     require(_amount > 0, 'Must mint at least one');
 
