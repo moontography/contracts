@@ -4,15 +4,18 @@
   "description": "OKLG contracts",
   "main": "index.js",
   "scripts": {
+    "compile": "npx hardhat compile",
     "prettier": "prettier --write 'contracts/**/*.sol'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx hardhat test"
   },
   "author": "Lance Whatley",
   "license": "MIT",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.4",
+    "@nomiclabs/hardhat-truffle5": "^2.0.3",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
     "@openzeppelin/contracts": "^4.1.0",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
@@ -22,8 +25,10 @@
     "ethers": "^5.4.2",
     "hardhat": "^2.5.0",
     "hardhat-gas-reporter": "^1.0.4",
+    "moment": "^2.29.1",
     "prettier": "^2.3.2",
     "prettier-plugin-solidity": "^1.0.0-beta.17",
-    "solidity-coverage": "^0.7.16"
+    "solidity-coverage": "^0.7.16",
+    "web3": "^1.5.2"
   }
 }

@@ -1,5 +1,7 @@
 // import "@nomiclabs/hardhat-etherscan";
 require('@nomiclabs/hardhat-etherscan')
+// import "@nomiclabs/hardhat-truffle5";
+require('@nomiclabs/hardhat-truffle5')
 // import "@nomiclabs/hardhat-waffle";
 require('@nomiclabs/hardhat-waffle')
 // import "hardhat-gas-reporter";
