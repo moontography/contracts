@@ -16,7 +16,7 @@ let testWalletAddress
 let paymentAddress
 let totalPaymentsCollected
 
-const mintPrice = '0.542069'
+const mintPrice = '0.0542069'
 
 describe('OKLG Monkeys NFT contract', function () {
   //before
@@ -365,11 +365,11 @@ describe('OKLG Monkeys NFT contract', function () {
       // Public sale active
       expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(true)
 
-      // maxWalletAmount = 100, try minting 101, should revert
+      // maxWalletAmount = 10, try minting 101, should revert
       await expect(
-        okLetsGoNFTContract.connect(signer2).mint(101, {
+        okLetsGoNFTContract.connect(signer2).mint(11, {
           value: ethers.utils.parseEther(
-            new BigNumber(mintPrice).times(101).toFixed()
+            new BigNumber(mintPrice).times(11).toFixed()
           ),
         })
       ).to.be.revertedWith(
@@ -379,7 +379,7 @@ describe('OKLG Monkeys NFT contract', function () {
       //assert there is still no token in signer2's wallet
       expect(await okLetsGoNFTContract.balanceOf(signer2.address)).to.be.eq(0)
 
-      // maxWalletAmount = 100, try minting 2
+      // maxWalletAmount = 10, try minting 2
       await expect(
         okLetsGoNFTContract.connect(signer2).mint(2, {
           value: ethers.utils.parseEther(

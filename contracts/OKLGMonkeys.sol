@@ -34,21 +34,21 @@ contract OKLGMonkeys is
   string private baseTokenURI; // baseTokenURI can point to IPFS folder like https://ipfs.io/ipfs/{cid}/
 
   // Payment address
-  address private paymentAddress;
+  address private paymentAddress = 0xDb3AC91239b79Fae75c21E1f75a189b1D75dD906;
 
   // Royalties address
-  address private royaltyAddress;
+  address private royaltyAddress = 0xDb3AC91239b79Fae75c21E1f75a189b1D75dD906;
 
   // Royalties basis points (percentage using 2 decimals - 10000 = 100, 0 = 0)
   uint256 private royaltyBasisPoints = 1000; // 10%
 
   // Token info
   string public constant TOKEN_NAME = 'OKLG Monkeys';
-  string public constant TOKEN_SYMBOL = 'mOKLG';
+  string public constant TOKEN_SYMBOL = 'OKLGMonkeys';
   uint256 public constant TOTAL_TOKENS = 10000;
 
-  uint256 public mintCost = 0.542069 ether;
-  uint256 public maxWalletAmount = 100;
+  uint256 public mintCost = 0.0542069 ether;
+  uint256 public maxWalletAmount = 10;
 
   // Pre sale/Public sale active
   bool public preSaleActive;
@@ -86,9 +86,6 @@ contract OKLGMonkeys is
   // -- Constructor --//
   constructor(string memory _baseTokenURI) ERC721(TOKEN_NAME, TOKEN_SYMBOL) {
     baseTokenURI = _baseTokenURI;
-
-    paymentAddress = _msgSender();
-    royaltyAddress = _msgSender();
   }
 
   // -- External Functions -- //
