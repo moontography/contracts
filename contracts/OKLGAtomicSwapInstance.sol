@@ -4,17 +4,21 @@ pragma solidity ^0.8.4;
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import './OKLGProduct.sol';
 
+interface IERC20Decimals is IERC20 {
+  function decimals() external view returns (uint8);
+}
+
 /**
  * @title OKLGAtomicSwapInstance
  * @dev This is the main contract that supports holding metadata for OKLG atomic inter and intrachain swapping
  */
 contract OKLGAtomicSwapInstance is OKLGProduct {
-  IERC20 private _token;
+  IERC20Decimals private _token;
 
   address public tokenOwner;
-  address public oracleAddress;
-  uint256 public originalSupply;
+  address payable public oracleAddress;
   uint256 public maxSwapAmount;
+  uint8 public targetTokenDecimals;
   uint256 public minimumGasForOperation = 2 * 10**15; // 2 finney (0.002 ETH)
   bool public isActive = true;
 
@@ -60,36 +64,35 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     address _oracleAddress,
     address _tokenOwner,
     address _tokenAddy,
+    uint8 _targetTokenDecimals,
     uint256 _maxSwapAmount
   ) OKLGProduct(uint8(7), _costToken, _spendAddress) {
-    oracleAddress = _oracleAddress;
+    oracleAddress = payable(_oracleAddress);
     tokenOwner = _tokenOwner;
     maxSwapAmount = _maxSwapAmount;
-    _token = IERC20(_tokenAddy);
+    targetTokenDecimals = _targetTokenDecimals;
+    _token = IERC20Decimals(_tokenAddy);
   }
 
   function getSwapTokenAddress() external view returns (address) {
     return address(_token);
   }
 
-  function changeActiveState(bool _isActive) external {
+  function setActiveState(bool _isActive) external {
     require(
       msg.sender == owner() || msg.sender == tokenOwner,
-      'changeActiveState user must be contract creator'
+      'setActiveState user must be contract creator'
     );
     isActive = _isActive;
   }
 
-  // should only be called after we instantiate a new instance of
-  // this and it's to handle weird tokenomics where we don't get
-  // original full supply
-  function setSupply() external onlyOwner {
-    originalSupply = _token.balanceOf(address(this));
+  function setOracleAddress(address _oracleAddress) external onlyOwner {
+    oracleAddress = payable(_oracleAddress);
+    transferOwnership(oracleAddress);
   }
 
-  function changeOracleAddress(address _oracleAddress) external onlyOwner {
-    oracleAddress = _oracleAddress;
-    transferOwnership(oracleAddress);
+  function setTargetTokenDecimals(uint8 _decimals) external onlyOwner {
+    targetTokenDecimals = _decimals;
   }
 
   function setTokenOwner(address newOwner) external {
@@ -100,11 +103,6 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     address previousOwner = tokenOwner;
     tokenOwner = newOwner;
     emit TokenOwnerUpdated(previousOwner, newOwner);
-  }
-
-  function depositTokens(uint256 _amount) external {
-    require(msg.sender == tokenOwner, 'depositTokens user must be token owner');
-    _token.transferFrom(msg.sender, address(this), _amount);
   }
 
   function withdrawTokens(uint256 _amount) external {
@@ -143,7 +141,9 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
 
     _payForService(0);
 
-    payable(oracleAddress).transfer(msg.value);
+    if (minimumGasForOperation > 0) {
+      oracleAddress.call{ value: minimumGasForOperation }('');
+    }
     _token.transferFrom(msg.sender, address(this), _amount);
 
     uint256 _ts = block.timestamp;
@@ -189,7 +189,9 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       _id == sha256(abi.encodePacked(msg.sender, _origTimestamp, _amount)),
       "we don't recognize this swap"
     );
-    payable(oracleAddress).transfer(msg.value);
+    if (minimumGasForOperation > 0) {
+      oracleAddress.call{ value: minimumGasForOperation }('');
+    }
     swaps[_id] = Swap({
       id: _id,
       origTimestamp: _origTimestamp,
@@ -224,7 +226,19 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     Swap storage swap = swaps[_id];
 
     _confirmSwapExistsGasFundedAndSenderValid(swap);
-    _token.transfer(swap.swapAddress, swap.amount);
+
+    // handle if this token and target chain token in bridge have different decimals
+    // current decimals = 9 -- 100 tokens == 100000000000
+    // target decimals = 18 -- 100 tokens == 100000000000000000000
+    // to get current amount to transfer, need to multiply by ratio of 10^currentDecimals / 10^targetDecimals
+    uint256 _swapAmount = swap.amount;
+    if (targetTokenDecimals > 0) {
+      _swapAmount =
+        swap.amount *
+        (10**_token.decimals() / 10**targetTokenDecimals);
+    }
+    _token.transfer(swap.swapAddress, _swapAmount);
+
     swap.currentTimestamp = block.timestamp;
     swap.isComplete = true;
     emit SendTokensToDestination(_id, swap.swapAddress, swap.amount);
