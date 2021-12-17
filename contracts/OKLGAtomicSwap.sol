@@ -18,6 +18,7 @@ contract OKLGAtomicSwap is OKLGProduct {
     address sourceContract;
     string targetNetwork;
     address targetContract;
+    uint8 targetDecimals;
     bool isActive;
   }
 
@@ -58,7 +59,7 @@ contract OKLGAtomicSwap is OKLGProduct {
     return lastUserCreatedContract[_addy];
   }
 
-  function changeOracleAddress(address _oracleAddress, bool _changeAll)
+  function setOracleAddress(address _oracleAddress, bool _changeAll)
     external
     onlyOwner
   {
@@ -68,7 +69,7 @@ contract OKLGAtomicSwap is OKLGProduct {
         OKLGAtomicSwapInstance _contract = OKLGAtomicSwapInstance(
           targetSwapContracts[_i].sourceContract
         );
-        _contract.changeOracleAddress(oracleAddress);
+        _contract.setOracleAddress(oracleAddress);
       }
     }
   }
@@ -86,6 +87,7 @@ contract OKLGAtomicSwap is OKLGProduct {
     address _sourceContract,
     string memory _targetNetwork,
     address _targetContract,
+    uint8 _targetDecimals,
     bool _isActive
   ) external {
     TargetSwapInfo storage swapContInd = targetSwapContractsIndexed[
@@ -114,8 +116,10 @@ contract OKLGAtomicSwap is OKLGProduct {
 
     swapCont.targetNetwork = _targetNetwork;
     swapCont.targetContract = _targetContract;
+    swapCont.targetDecimals = _targetDecimals;
     swapCont.isActive = _isActive;
     swapContInd.targetContract = swapCont.targetContract;
+    swapContInd.targetDecimals = swapCont.targetDecimals;
     swapContInd.isActive = _isActive;
   }
 
@@ -124,23 +128,26 @@ contract OKLGAtomicSwap is OKLGProduct {
     uint256 _tokenSupply,
     uint256 _maxSwapAmount,
     string memory _targetNetwork,
-    address _targetContract
+    address _targetContract,
+    uint8 _targetDecimals
   ) external payable returns (uint256, address) {
     _payForService(swapCreationGasLoadAmount);
     oracleAddress.call{ value: swapCreationGasLoadAmount }('');
 
+    IERC20 _token = IERC20(_tokenAddy);
     OKLGAtomicSwapInstance _contract = new OKLGAtomicSwapInstance(
       getTokenAddress(),
       getSpendAddress(),
       oracleAddress,
       msg.sender,
       _tokenAddy,
+      _targetDecimals,
       _maxSwapAmount
     );
 
-    IERC20 _token = IERC20(_tokenAddy);
-    _token.transferFrom(msg.sender, address(_contract), _tokenSupply);
-    _contract.setSupply();
+    if (_tokenSupply > 0) {
+      _token.transferFrom(msg.sender, address(_contract), _tokenSupply);
+    }
     _contract.transferOwnership(oracleAddress);
 
     uint256 _ts = block.timestamp;
@@ -152,6 +159,7 @@ contract OKLGAtomicSwap is OKLGProduct {
       sourceContract: address(_contract),
       targetNetwork: _targetNetwork,
       targetContract: _targetContract,
+      targetDecimals: _targetDecimals,
       isActive: true
     });
 
