@@ -1,3 +1,4 @@
+const BigNumber = require('bignumber.js')
 const { expect } = require('chai')
 // const moment = require('moment')
 
@@ -14,6 +15,8 @@ let testWalletAddress
 //aggregate the amount of ETH that should be forwarded to the paymentAddress
 let paymentAddress
 let totalPaymentsCollected
+
+const mintPrice = '0.542069'
 
 describe('OKLG Monkeys NFT contract', function () {
   //before
@@ -264,7 +267,7 @@ describe('OKLG Monkeys NFT contract', function () {
       //mint 1 with non owner, should revert
       await expect(
         okLetsGoNFTContract.connect(signer1).mint(1, {
-          value: ethers.utils.parseEther('0.542069'),
+          value: ethers.utils.parseEther(mintPrice),
         })
       ).to.be.revertedWith('Sale is not active')
 
@@ -306,7 +309,7 @@ describe('OKLG Monkeys NFT contract', function () {
       // mint 1 pre sale token, with non presale address, should revert
       await expect(
         okLetsGoNFTContract.connect(signer2).mint(1, {
-          value: ethers.utils.parseEther('0.542069'),
+          value: ethers.utils.parseEther(mintPrice),
         })
       ).to.be.revertedWith('Must be on whitelist')
 
@@ -326,13 +329,13 @@ describe('OKLG Monkeys NFT contract', function () {
       // mint 1 pre sale token
       await expect(
         okLetsGoNFTContract.connect(signer1).mint(1, {
-          value: ethers.utils.parseEther('0.542069'),
+          value: ethers.utils.parseEther(mintPrice),
         })
       ).to.not.be.reverted
 
       //add to total
       totalPaymentsCollected = totalPaymentsCollected.add(
-        ethers.utils.parseEther('0.542069')
+        ethers.utils.parseEther(mintPrice)
       )
 
       //assert there is 1 token in signer1's wallet
@@ -365,7 +368,9 @@ describe('OKLG Monkeys NFT contract', function () {
       // maxWalletAmount = 100, try minting 101, should revert
       await expect(
         okLetsGoNFTContract.connect(signer2).mint(101, {
-          value: ethers.utils.parseEther('54.748969'),
+          value: ethers.utils.parseEther(
+            new BigNumber(mintPrice).times(101).toFixed()
+          ),
         })
       ).to.be.revertedWith(
         'Requested amount exceeds maximum mint amount per wallet'
@@ -377,13 +382,15 @@ describe('OKLG Monkeys NFT contract', function () {
       // maxWalletAmount = 100, try minting 2
       await expect(
         okLetsGoNFTContract.connect(signer2).mint(2, {
-          value: ethers.utils.parseEther('1.084138'),
+          value: ethers.utils.parseEther(
+            new BigNumber(mintPrice).times(2).toFixed()
+          ),
         })
       ).to.not.be.reverted
 
       //add to total
       totalPaymentsCollected = totalPaymentsCollected.add(
-        ethers.utils.parseEther('1.084138')
+        ethers.utils.parseEther(new BigNumber(mintPrice).times(2).toFixed())
       )
 
       //assert there is 2 tokens in signer2's wallet
