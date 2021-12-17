@@ -25,6 +25,7 @@ contract OKLGMonkeys is
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIds;
+  Counters.Counter private _tokensMintedPerSaleRound;
 
   // Base token uri
   string private baseTokenURI; // baseTokenURI can point to IPFS folder like https://ipfs.io/ipfs/{cid}/
@@ -43,8 +44,12 @@ contract OKLGMonkeys is
   string public constant TOKEN_SYMBOL = 'OKLGMonkeys';
   uint256 public constant TOTAL_TOKENS = 10000;
 
+  // Mint cost and max per wallet
   uint256 public mintCost = 0.0542069 ether;
   uint256 public maxWalletAmount = 10;
+
+  // Amount of tokens to mint before automatically stopping public sale
+  uint256 public maxMintsPerSaleRound = 1000;
 
   // Pre sale/Public sale active
   bool public preSaleActive;
@@ -88,6 +93,7 @@ contract OKLGMonkeys is
 
   // Start pre sale
   function startPreSale() external onlyOwner {
+    _tokensMintedPerSaleRound.reset();
     preSaleActive = true;
     publicSaleActive = false;
   }
@@ -100,6 +106,7 @@ contract OKLGMonkeys is
 
   // Start public sale
   function startPublicSale() external onlyOwner {
+    _tokensMintedPerSaleRound.reset();
     preSaleActive = false;
     publicSaleActive = true;
   }
@@ -141,14 +148,15 @@ contract OKLGMonkeys is
     }
   }
 
-  //-- Public Functions --//
-
   // Mint token - requires amount
   function mint(uint256 _amount) external payable whenOwnerOrSaleActive {
     require(_amount > 0, 'Must mint at least one');
 
     // Check there enough mints left to mint
-    require(getMintsLeft() >= _amount, 'Minting would exceed max supply');
+    require(_amount <= getMintsLeft(), 'Minting would exceed max supply');
+
+    // Check there are mints left per sale round
+    require(_amount <= getMintsLeftPerSaleRound(), 'Minting would exceed max mint amount per sale round');
 
     // Set cost to mint
     uint256 costToMint = 0;
@@ -183,6 +191,9 @@ contract OKLGMonkeys is
 
       // Safe mint
       _safeMint(_msgSender(), _tokenIds.current());
+
+      // Increment tokens minted per sale round
+      _tokensMintedPerSaleRound.increment();
     }
 
     // Send mint cost to payment address
@@ -192,12 +203,12 @@ contract OKLGMonkeys is
     if (msg.value > costToMint) {
       Address.sendValue(payable(_msgSender()), msg.value.sub(costToMint));
     }
-  }
 
-  // Get mints left
-  function getMintsLeft() public view returns (uint256) {
-    uint256 currentSupply = super.totalSupply();
-    return TOTAL_TOKENS.sub(currentSupply);
+    // If tokens minted per sale round hits the max mints per sale round, end pre/public sale
+    if (_tokensMintedPerSaleRound.current() >= maxMintsPerSaleRound) {
+      preSaleActive = false;
+      publicSaleActive = false;
+    }
   }
 
   // Set mint cost
@@ -208,6 +219,16 @@ contract OKLGMonkeys is
   // Set max wallet amount
   function setMaxWalletAmount(uint256 _amount) external onlyOwner {
     maxWalletAmount = _amount;
+  }
+
+  // Set max mints per sale round amount
+  function setMaxMintsPerSaleRound(uint256 _amount) external onlyOwner {
+    maxMintsPerSaleRound = _amount;
+  }
+
+  // Reset tokens minted per sale round
+  function resetTokensMintedPerSaleRound() external onlyOwner {
+    _tokensMintedPerSaleRound.reset();
   }
 
   // Set payment address
@@ -229,6 +250,20 @@ contract OKLGMonkeys is
   // Set base URI
   function setBaseURI(string memory _uri) external onlyOwner {
     baseTokenURI = _uri;
+  }
+
+
+  //-- Public Functions --//
+
+  // Get mints left
+  function getMintsLeft() public view returns (uint256) {
+    uint256 currentSupply = super.totalSupply();
+    return TOTAL_TOKENS.sub(currentSupply);
+  }
+
+  // Get mints left per sale round
+  function getMintsLeftPerSaleRound() public view returns (uint256) {
+    return maxMintsPerSaleRound.sub(_tokensMintedPerSaleRound.current());
   }
 
   // Token URI (baseTokenURI + tokenId)
