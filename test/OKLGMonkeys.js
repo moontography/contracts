@@ -365,7 +365,7 @@ describe('OKLG Monkeys NFT contract', function () {
       // maxWalletAmount = 100, try minting 101, should revert
       await expect(
         okLetsGoNFTContract.connect(signer2).mint(101, {
-          value: ethers.utils.parseEther('3'),
+          value: ethers.utils.parseEther('54.748969'),
         })
       ).to.be.revertedWith(
         'Requested amount exceeds maximum mint amount per wallet'
@@ -377,13 +377,13 @@ describe('OKLG Monkeys NFT contract', function () {
       // maxWalletAmount = 100, try minting 2
       await expect(
         okLetsGoNFTContract.connect(signer2).mint(2, {
-          value: ethers.utils.parseEther('1'),
+          value: ethers.utils.parseEther('1.084138'),
         })
       ).to.not.be.reverted
 
       //add to total
       totalPaymentsCollected = totalPaymentsCollected.add(
-        ethers.utils.parseEther('1')
+        ethers.utils.parseEther('1.084138')
       )
 
       //assert there is 2 tokens in signer2's wallet
