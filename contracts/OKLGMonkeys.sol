@@ -1,7 +1,3 @@
-//TODO:
-// payment/royalty addresses
-// add/remove from presale public or only owner?
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
@@ -15,7 +11,7 @@ import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
 /**
  *
- * Ok Let's Go Monkeys NFT contract
+ * ok.let's.go. Monkeys NFT contract
  *
  */
 contract OKLGMonkeys is
