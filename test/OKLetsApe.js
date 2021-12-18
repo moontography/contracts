@@ -18,13 +18,13 @@ let totalPaymentsCollected
 
 const mintPrice = '0.0542069'
 
-describe('OKLG Monkeys NFT contract', function () {
+describe('OKLetsApe NFT contract', function () {
   //before
   before(async () => {
     const [owner] = await ethers.getSigners()
 
     //Contract Factory
-    OkLetsGoNFTFactory = await ethers.getContractFactory('OKLGMonkeys')
+    OkLetsGoNFTFactory = await ethers.getContractFactory('OKLetsApe')
 
     //deploy contract, store result in global okLetsGoNFTContract var for tests that follow
     okLetsGoNFTContract = await OkLetsGoNFTFactory.deploy(_baseTokenURI)
@@ -420,7 +420,9 @@ describe('OKLG Monkeys NFT contract', function () {
         okLetsGoNFTContract.connect(owner).mint(101, {
           value: ethers.utils.parseEther('0'),
         })
-      ).to.be.revertedWith('Minting would exceed max mint amount per sale round')
+      ).to.be.revertedWith(
+        'Minting would exceed max mint amount per sale round'
+      )
 
       //assert there is still 50 tokens in owners wallet
       expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(50)
@@ -456,7 +458,7 @@ describe('OKLG Monkeys NFT contract', function () {
 
       //assert there are 150 tokens in owners wallet
       expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(150)
-      
+
       //expect 9847 mints left
       expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9847)
 
