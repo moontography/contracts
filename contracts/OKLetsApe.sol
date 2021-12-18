@@ -11,10 +11,10 @@ import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
 /**
  *
- * ok.let's.go. Monkeys NFT contract
+ * ok.lets.ape. NFT contract
  *
  */
-contract OKLGMonkeys is
+contract OKLetsApe is
   Ownable,
   ERC721Burnable,
   ERC721Enumerable,
@@ -39,8 +39,8 @@ contract OKLGMonkeys is
   uint256 private royaltyBasisPoints = 1000; // 10%
 
   // Token info
-  string public constant TOKEN_NAME = 'OKLG Monkeys';
-  string public constant TOKEN_SYMBOL = 'OKLGMonkeys';
+  string public constant TOKEN_NAME = 'ok.lets.ape.';
+  string public constant TOKEN_SYMBOL = 'OKLApe';
   uint256 public constant TOTAL_TOKENS = 10000;
 
   uint256 public mintCost = 0.0542069 ether;

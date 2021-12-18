@@ -139,7 +139,7 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       'trying to send more than maxSwapAmount'
     );
 
-    _payForService(0);
+    _payForService(minimumGasForOperation);
 
     if (minimumGasForOperation > 0) {
       oracleAddress.call{ value: minimumGasForOperation }('');
