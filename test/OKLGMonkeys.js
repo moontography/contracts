@@ -400,6 +400,83 @@ describe('OKLG Monkeys NFT contract', function () {
       expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9947)
     })
 
+    it('Should not allow minting of more than the max amount of mints per sale round', async function () {
+      const [owner, signer1] = await ethers.getSigners()
+
+      // Start public sale
+      await okLetsGoNFTContract.connect(owner).startPublicSale()
+
+      // Pre sale not active
+      expect(await okLetsGoNFTContract.preSaleActive()).to.equal(false)
+
+      // Public sale active
+      expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(true)
+
+      // Set max mints per sale round to 100 for testing purposes
+      await okLetsGoNFTContract.connect(owner).setMaxMintsPerSaleRound(100)
+
+      // maxMintsPerSaleRound = 100, try minting 101, should revert
+      await expect(
+        okLetsGoNFTContract.connect(owner).mint(101, {
+          value: ethers.utils.parseEther('0'),
+        })
+      ).to.be.revertedWith('Minting would exceed max mint amount per sale round')
+
+      //assert there is still 50 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(50)
+
+      //expect same amount of mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9947)
+
+      //expect same amount of mints per sale left
+      expect(await okLetsGoNFTContract.getMintsLeftPerSaleRound()).to.be.eq(100)
+
+      // Try minting 10, should not revert
+      await expect(
+        okLetsGoNFTContract.connect(owner).mint(10, {
+          value: ethers.utils.parseEther('0'),
+        })
+      ).to.not.be.reverted
+
+      //assert there are 60 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(60)
+
+      //expect 9937 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9937)
+
+      //expect 990 mints left per sale round
+      expect(await okLetsGoNFTContract.getMintsLeftPerSaleRound()).to.be.eq(90)
+
+      // Try minting 90, should not revert and should end pre/public sale
+      await expect(
+        okLetsGoNFTContract.connect(owner).mint(90, {
+          value: ethers.utils.parseEther('0'),
+        })
+      ).to.not.be.reverted
+
+      //assert there are 150 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(150)
+      
+      //expect 9847 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9847)
+
+      //expect 0 mints left per sale round
+      expect(await okLetsGoNFTContract.getMintsLeftPerSaleRound()).to.be.eq(0)
+
+      // Pre sale not active
+      expect(await okLetsGoNFTContract.preSaleActive()).to.equal(false)
+
+      // Public sale not active
+      expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(false)
+
+      // Public sale not active, should revert
+      await expect(
+        okLetsGoNFTContract.connect(signer1).mint(1, {
+          value: ethers.utils.parseEther(mintPrice),
+        })
+      ).to.be.revertedWith('Sale is not active')
+    })
+
     it('Should not allow minting of more than the total amount of tokens', async function () {
       const [owner] = await ethers.getSigners()
 
@@ -419,11 +496,11 @@ describe('OKLG Monkeys NFT contract', function () {
         })
       ).to.be.revertedWith('Minting would exceed max supply')
 
-      //assert there is still 50 tokens in owners wallet
-      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(50)
+      //assert there is still 150 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(150)
 
       //expect same amount of mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9947)
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9847)
 
       // Try minting 10, should not revert
       await expect(
@@ -432,11 +509,11 @@ describe('OKLG Monkeys NFT contract', function () {
         })
       ).to.not.be.reverted
 
-      //assert there are 60 tokens in owners wallet
-      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(60)
+      //assert there are 160 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(160)
 
-      //expect 9937 mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9937)
+      //expect 9837 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9837)
     })
   })
 
