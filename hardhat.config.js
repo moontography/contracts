@@ -19,7 +19,9 @@ const dotenvConfig = conf
 dotenvConfig({ path: resolve(__dirname, './.env') })
 
 const chainIds = {
+  avax: 43114,
   bsc: 56,
+  ftm: 250,
   kcc: 321,
   polygon: 137,
   ganache: 1337,
@@ -64,9 +66,11 @@ function createConfig(network, rpcUrl = null) {
 const config = {
   defaultNetwork: 'hardhat',
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
     // apiKey: process.env.BSCSCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
+    // apiKey: process.env.FANTOM_API_KEY,
     // apiKey: process.env.POLYGONSCAN_API_KEY,
+    // apiKey: process.env.SNOWTRACE_API_KEY,
   },
   gasReporter: {
     currency: 'USD',
@@ -82,11 +86,13 @@ const config = {
       },
       chainId: chainIds.hardhat,
     },
+    avax: createConfig('avax', 'https://api.avax.network/ext/bc/C/rpc'),
     bsc: createConfig('bsc', 'https://bsc-dataseed.binance.org'),
     bsctest: createConfig(
       'bsctest',
       'https://data-seed-prebsc-1-s1.binance.org:8545'
     ),
+    ftm: createConfig('ftm', 'https://rpc.ftm.tools'),
     kcc: createConfig('kcc', 'https://rpc-mainnet.kcc.network'),
     polygon: createConfig('polygon', 'https://polygon-rpc.com'),
     mainnet: createConfig('mainnet'),

@@ -14,11 +14,10 @@ async function main() {
   // TODO: make configurable through CLI params
   // const maxFeePerGas = ethers.utils.parseUnits('80', 'gwei')
   // const maxPriorityFeePerGas = ethers.utils.parseUnits('2', 'gwei')
-  const contract = await Contract.deploy(
+  const contract = await Contract
+    .deploy
     /* { maxFeePerGas, maxPriorityFeePerGas } */
-    '0x5f67df361f568e185aA0304A57bdE4b8028d059E',
-    '0x4AED49E5EB646b3298b05737Df86e69FC844e35C'
-  )
+    ()
 
   console.log('Contract address:', contract.address)
 }

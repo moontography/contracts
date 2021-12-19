@@ -10,7 +10,7 @@ import './OKLGWithdrawable.sol';
  * @dev Logic for spending OKLG on products in the product ecosystem.
  */
 contract OKLGSpend is IOKLGSpend, OKLGWithdrawable {
-  address payable private constant _deadWallet =
+  address payable private constant DEAD_WALLET =
     payable(0x000000000000000000000000000000000000dEaD);
   address payable public paymentWallet =
     payable(0x000000000000000000000000000000000000dEaD);
@@ -127,7 +127,7 @@ contract OKLGSpend is IOKLGSpend, OKLGWithdrawable {
       msg.value >= _productCostWei,
       'not enough ETH sent to pay for product'
     );
-    address payable _paymentWallet = paymentWallet == _deadWallet ||
+    address payable _paymentWallet = paymentWallet == DEAD_WALLET ||
       paymentWallet == address(0)
       ? payable(owner())
       : paymentWallet;
