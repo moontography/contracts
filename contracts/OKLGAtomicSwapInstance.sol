@@ -233,15 +233,13 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     // to get current amount to transfer, need to multiply by ratio of 10^currentDecimals / 10^targetDecimals
     uint256 _swapAmount = swap.amount;
     if (targetTokenDecimals > 0) {
-      _swapAmount =
-        swap.amount *
-        (10**_token.decimals() / 10**targetTokenDecimals);
+      _swapAmount *= 10**_token.decimals() / 10**targetTokenDecimals;
     }
     _token.transfer(swap.swapAddress, _swapAmount);
 
     swap.currentTimestamp = block.timestamp;
     swap.isComplete = true;
-    emit SendTokensToDestination(_id, swap.swapAddress, swap.amount);
+    emit SendTokensToDestination(_id, swap.swapAddress, _swapAmount);
     return _id;
   }
 

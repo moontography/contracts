@@ -6,9 +6,9 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/utils/Counters.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import './interfaces/IOKLetsApe.sol';
+import './interfaces/IERC721Helpers.sol';
+import './utils/Counters.sol';
 
 /**
  *
@@ -98,8 +98,11 @@ contract OKLetsApe is
   }
 
   // -- Constructor --//
-  constructor(string memory _baseTokenURI) ERC721(TOKEN_NAME, TOKEN_SYMBOL) {
+  constructor(string memory _baseTokenURI, uint8 counterType)
+    ERC721(TOKEN_NAME, TOKEN_SYMBOL)
+  {
     baseTokenURI = _baseTokenURI;
+    _tokenIds.setType(counterType);
   }
 
   // -- External Functions -- //
@@ -171,7 +174,10 @@ contract OKLetsApe is
     require(_amount <= getMintsLeft(), 'Minting would exceed max supply');
 
     // Check there are mints left per sale round
-    require(_amount <= getMintsLeftPerSaleRound(), 'Minting would exceed max mint amount per sale round');
+    require(
+      _amount <= getMintsLeftPerSaleRound(),
+      'Minting would exceed max mint amount per sale round'
+    );
 
     // Set cost to mint
     uint256 costToMint = 0;
@@ -232,12 +238,12 @@ contract OKLetsApe is
   }
 
   // Set mint cost contract
-  function setMintCostContract(address _contract) external onlyOwner {
+  function setERC721HelperContract(address _contract) external onlyOwner {
     if (_contract != address(0)) {
-      IOKLetsApe _contCheck = IOKLetsApe(_contract);
+      IERC721Helpers _contCheck = IERC721Helpers(_contract);
       // allow setting to zero address to effectively turn off logic
       require(
-        _contCheck.mintCost() > 0,
+        _contCheck.getMintCost() == 0 || _contCheck.getMintCost() > 0,
         'contract does not implement interface'
       );
     }
@@ -280,13 +286,14 @@ contract OKLetsApe is
     baseTokenURI = _uri;
   }
 
-
   //-- Public Functions --//
 
   // Get mint cost from mint cost contract, or fallback to local mintCost
   function getMintCost() public view returns (uint256) {
-    return mintCostContract != address(0) ?
-      IOKLetsApe(mintCostContract).mintCost() : mintCost;
+    return
+      mintCostContract != address(0)
+        ? IERC721Helpers(mintCostContract).getMintCost()
+        : mintCost;
   }
 
   // Get mints left
