@@ -25,8 +25,15 @@ contract OKLetsApe is
   using Strings for uint256;
   using Counters for Counters.Counter;
 
+  // Token id counter
   Counters.Counter private _tokenIds;
-  Counters.Counter private _tokensMintedPerSaleRound;
+
+  // Sale round counters
+  Counters.Counter public _preSaleRound;
+  Counters.Counter public _publicSaleRound;
+
+  // Mints per sale round counter
+  Counters.Counter public _tokensMintedPerSaleRound;
 
   // Base token uri
   string private baseTokenURI; // baseTokenURI can point to IPFS folder like https://ipfs.io/ipfs/{cid}/
@@ -99,6 +106,7 @@ contract OKLetsApe is
 
   // Start pre sale
   function startPreSale() external onlyOwner {
+    _preSaleRound.increment();
     _tokensMintedPerSaleRound.reset();
     preSaleActive = true;
     publicSaleActive = false;
@@ -112,6 +120,7 @@ contract OKLetsApe is
 
   // Start public sale
   function startPublicSale() external onlyOwner {
+    _publicSaleRound.increment();
     _tokensMintedPerSaleRound.reset();
     preSaleActive = false;
     publicSaleActive = true;
