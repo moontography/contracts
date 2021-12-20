@@ -6,8 +6,9 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/utils/Counters.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import './interfaces/IERC721Helpers.sol';
+import './utils/Counters.sol';
 
 /**
  *
@@ -24,8 +25,15 @@ contract OKLetsApe is
   using Strings for uint256;
   using Counters for Counters.Counter;
 
+  // Token id counter
   Counters.Counter private _tokenIds;
-  Counters.Counter private _tokensMintedPerSaleRound;
+
+  // Sale round counters
+  Counters.Counter public _preSaleRound;
+  Counters.Counter public _publicSaleRound;
+
+  // Mints per sale round counter
+  Counters.Counter public _tokensMintedPerSaleRound;
 
   // Base token uri
   string private baseTokenURI; // baseTokenURI can point to IPFS folder like https://ipfs.io/ipfs/{cid}/
@@ -46,6 +54,11 @@ contract OKLetsApe is
 
   // Mint cost and max per wallet
   uint256 public mintCost = 0.0542069 ether;
+
+  // Mint cost contract
+  address public mintCostContract;
+
+  // Max wallet amount
   uint256 public maxWalletAmount = 10;
 
   // Amount of tokens to mint before automatically stopping public sale
@@ -85,14 +98,18 @@ contract OKLetsApe is
   }
 
   // -- Constructor --//
-  constructor(string memory _baseTokenURI) ERC721(TOKEN_NAME, TOKEN_SYMBOL) {
+  constructor(string memory _baseTokenURI, uint8 counterType)
+    ERC721(TOKEN_NAME, TOKEN_SYMBOL)
+  {
     baseTokenURI = _baseTokenURI;
+    _tokenIds.setType(counterType);
   }
 
   // -- External Functions -- //
 
   // Start pre sale
   function startPreSale() external onlyOwner {
+    _preSaleRound.increment();
     _tokensMintedPerSaleRound.reset();
     preSaleActive = true;
     publicSaleActive = false;
@@ -106,6 +123,7 @@ contract OKLetsApe is
 
   // Start public sale
   function startPublicSale() external onlyOwner {
+    _publicSaleRound.increment();
     _tokensMintedPerSaleRound.reset();
     preSaleActive = false;
     publicSaleActive = true;
@@ -156,7 +174,10 @@ contract OKLetsApe is
     require(_amount <= getMintsLeft(), 'Minting would exceed max supply');
 
     // Check there are mints left per sale round
-    require(_amount <= getMintsLeftPerSaleRound(), 'Minting would exceed max mint amount per sale round');
+    require(
+      _amount <= getMintsLeftPerSaleRound(),
+      'Minting would exceed max mint amount per sale round'
+    );
 
     // Set cost to mint
     uint256 costToMint = 0;
@@ -170,7 +191,7 @@ contract OKLetsApe is
       }
 
       // Set cost to mint
-      costToMint = mintCost * _amount;
+      costToMint = getMintCost() * _amount;
 
       // Get current address total balance
       uint256 currentWalletAmount = super.balanceOf(_msgSender());
@@ -216,6 +237,19 @@ contract OKLetsApe is
     mintCost = _cost;
   }
 
+  // Set mint cost contract
+  function setERC721HelperContract(address _contract) external onlyOwner {
+    if (_contract != address(0)) {
+      IERC721Helpers _contCheck = IERC721Helpers(_contract);
+      // allow setting to zero address to effectively turn off logic
+      require(
+        _contCheck.getMintCost() == 0 || _contCheck.getMintCost() > 0,
+        'contract does not implement interface'
+      );
+    }
+    mintCostContract = _contract;
+  }
+
   // Set max wallet amount
   function setMaxWalletAmount(uint256 _amount) external onlyOwner {
     maxWalletAmount = _amount;
@@ -252,8 +286,15 @@ contract OKLetsApe is
     baseTokenURI = _uri;
   }
 
-
   //-- Public Functions --//
+
+  // Get mint cost from mint cost contract, or fallback to local mintCost
+  function getMintCost() public view returns (uint256) {
+    return
+      mintCostContract != address(0)
+        ? IERC721Helpers(mintCostContract).getMintCost()
+        : mintCost;
+  }
 
   // Get mints left
   function getMintsLeft() public view returns (uint256) {
