@@ -115,12 +115,18 @@ contract OKLGAtomicSwap is OKLGProduct {
     );
 
     swapCont.targetNetwork = _targetNetwork;
+    swapContInd.targetNetwork = swapCont.targetNetwork;
+
     swapCont.targetContract = _targetContract;
-    swapCont.targetDecimals = _targetDecimals;
-    swapCont.isActive = _isActive;
     swapContInd.targetContract = swapCont.targetContract;
+
+    swapCont.targetDecimals = _targetDecimals;
     swapContInd.targetDecimals = swapCont.targetDecimals;
-    swapContInd.isActive = _isActive;
+    // TODO: if the decimals are changed from the original execution,
+    // should also execute #setTargetTokenDecimals on the instance contract.
+
+    swapCont.isActive = _isActive;
+    swapContInd.isActive = swapCont.isActive;
   }
 
   function createNewAtomicSwapContract(
