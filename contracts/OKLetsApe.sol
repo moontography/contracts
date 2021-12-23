@@ -329,7 +329,9 @@ contract OKLetsApe is
   // Get mints left
   function getMintsLeft() public view returns (uint256) {
     uint256 currentSupply = super.totalSupply();
-    return TOTAL_TOKENS.div(2).sub(currentSupply);
+    uint256 counterType = _tokenIds._type;
+    uint256 totalTokens = counterType != 0 ? TOTAL_TOKENS.div(2) : TOTAL_TOKENS;
+    return totalTokens.sub(currentSupply);
   }
 
   // Get mints left per sale round
