@@ -1,3 +1,6 @@
+// make sure odd and even counter works especially at the end (i.e 9999, 10000)
+// total supply/circulating supply logic
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
@@ -232,6 +235,33 @@ contract OKLetsApe is
     }
   }
 
+  // Custom mint function - requires token id and reciever address
+  // Mint or transfer token id - Used for cross chain bridging
+  function customMint(uint256 _tokenId, address _reciever) external onlyOwner {
+    require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
+
+    if(_exists(_tokenId)) {
+      // If token exists, make sure token owner is contract owner
+      require(owner() == ownerOf(_tokenId), 'Token is already owned');
+
+      // Transfer from contract owner to reciever
+      safeTransferFrom(owner(), _reciever, _tokenId);
+    } else {
+      // Safe mint
+      _safeMint(_reciever, _tokenId);
+    }
+  }
+
+  // Custom burn function - required token id
+  // Transfer token id to contract owner - used for cross chain bridging
+  function customBurn(uint256 _tokenId) external onlyOwner {
+    require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
+
+    require(_exists(_tokenId), 'Nonexistent token');
+
+    safeTransferFrom(ownerOf(_tokenId), owner(), _tokenId);
+  }
+
   // Set mint cost
   function setMintCost(uint256 _cost) external onlyOwner {
     mintCost = _cost;
@@ -299,12 +329,19 @@ contract OKLetsApe is
   // Get mints left
   function getMintsLeft() public view returns (uint256) {
     uint256 currentSupply = super.totalSupply();
-    return TOTAL_TOKENS.sub(currentSupply);
+    return TOTAL_TOKENS.div(2).sub(currentSupply);
   }
 
   // Get mints left per sale round
   function getMintsLeftPerSaleRound() public view returns (uint256) {
     return maxMintsPerSaleRound.sub(_tokensMintedPerSaleRound.current());
+  }
+
+  // Get circulating supply - current supply minus contract owner supply
+  function getCirculatingSupply() public view returns (uint256) {
+    uint256 currentSupply = super.totalSupply();
+    uint256 ownerSupply = balanceOf(owner());
+    return currentSupply.sub(ownerSupply);
   }
 
   // Token URI (baseTokenURI + tokenId)
