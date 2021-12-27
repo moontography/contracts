@@ -491,9 +491,9 @@ describe('OKLetsApe NFT contract', function () {
       // Public sale active
       expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(true)
 
-      // TOTAL_TOKENS = 10000/2 = 5000 (per chain), try minting 4948, should revert
+      // TOTAL_TOKENS = 10000/2 = 5000 (per chain), 4847 mints left, try minting 4848, should revert
       await expect(
-        okLetsGoNFTContract.connect(owner).mint(4948, {
+        okLetsGoNFTContract.connect(owner).mint(4848, {
           value: ethers.utils.parseEther('0'),
         })
       ).to.be.revertedWith('Minting would exceed max supply')
@@ -516,6 +516,69 @@ describe('OKLetsApe NFT contract', function () {
 
       //expect 4837 mints left
       expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4837)
+    })
+
+    it('Should end token id on correct id when minting last token', async function () {
+      const [owner] = await ethers.getSigners()
+
+      // Start public sale
+      await okLetsGoNFTContract.connect(owner).startPublicSale()
+
+      // Pre sale not active
+      expect(await okLetsGoNFTContract.preSaleActive()).to.equal(false)
+
+      // Public sale active
+      expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(true)
+
+      // Set max mints per sale round to 5000 for testing purposes
+      await okLetsGoNFTContract.connect(owner).setMaxMintsPerSaleRound(5000)
+      
+      // 4837 tokens left, try minting all remaining tokens
+      await expect(
+        okLetsGoNFTContract.connect(owner).mint(37, {
+          value: ethers.utils.parseEther('0'),
+        })
+      ).to.not.be.reverted
+      
+      // For testing, mint multiple batches.
+      for (let i = 0; i < 48; i++) {
+        await expect(
+          okLetsGoNFTContract.connect(owner).mint(100, {
+            value: ethers.utils.parseEther('0'),
+          })
+        ).to.not.be.reverted  
+      }
+
+      //assert there are 4997 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(4997)
+
+      //expect same amount of mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(0)
+
+      // Try minting 1, should revert
+      await expect(
+        okLetsGoNFTContract.connect(owner).mint(1, {
+          value: ethers.utils.parseEther('0'),
+        })
+      ).to.be.revertedWith('Minting would exceed max supply')
+
+      //assert there are 4997 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(4997)
+
+      //expect 0 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(0)
+
+      //check token mint ids - 9998 should not exisit, 9999 should exist, 10000 should not, 10001 should not exists
+      await expect(okLetsGoNFTContract.tokenURI(9998)).to.be.revertedWith(
+        'Nonexistent token'
+      )
+      await expect(okLetsGoNFTContract.tokenURI(9999)).to.not.be.reverted
+      await expect(okLetsGoNFTContract.tokenURI(10000)).to.be.revertedWith(
+        'Nonexistent token'
+      )
+      await expect(okLetsGoNFTContract.tokenURI(10001)).to.be.revertedWith(
+        'Nonexistent token'
+      )
     })
   })
 

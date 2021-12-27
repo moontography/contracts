@@ -1,6 +1,3 @@
-// make sure odd and even counter works especially at the end (i.e 9999, 10000)
-// total supply/circulating supply logic
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
@@ -315,6 +312,7 @@ contract OKLetsApe is
   function setBaseURI(string memory _uri) external onlyOwner {
     baseTokenURI = _uri;
   }
+
 
   //-- Public Functions --//
 
