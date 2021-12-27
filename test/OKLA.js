@@ -18,13 +18,13 @@ let totalPaymentsCollected
 
 const mintPrice = '0.0542069'
 
-describe('OKLetsApe NFT contract', function () {
+describe('OKLA NFT Contract', function () {
   //before
   before(async () => {
     const [owner] = await ethers.getSigners()
 
     //Contract Factory
-    OkLetsGoNFTFactory = await ethers.getContractFactory('OKLetsApe')
+    OkLetsGoNFTFactory = await ethers.getContractFactory('OKLA')
 
     //deploy contract, store result in global okLetsGoNFTContract var for tests that follow
     okLetsGoNFTContract = await OkLetsGoNFTFactory.deploy(_baseTokenURI, 1)

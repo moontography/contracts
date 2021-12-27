@@ -15,7 +15,7 @@ import './utils/Counters.sol';
  * ok.lets.ape. NFT contract
  *
  */
-contract OKLetsApe is
+contract OKLA is
   Ownable,
   ERC721Burnable,
   ERC721Enumerable,
@@ -49,7 +49,7 @@ contract OKLetsApe is
 
   // Token info
   string public constant TOKEN_NAME = 'ok.lets.ape.';
-  string public constant TOKEN_SYMBOL = 'OKLApe';
+  string public constant TOKEN_SYMBOL = 'OKLA';
   uint256 public constant TOTAL_TOKENS = 10000;
 
   // Mint cost and max per wallet
