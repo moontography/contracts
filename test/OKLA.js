@@ -591,7 +591,7 @@ describe('OKLA NFT Contract', function () {
     it('Should allow public read of the baseTokenURI via _baseURI', async function () {
       let tokenURI = await okLetsGoNFTContract.tokenURI(1)
 
-      expect(tokenURI).to.equal('ipfs://1')
+      expect(tokenURI).to.equal('ipfs://1.json')
     })
 
     it('Should allow owner to change the baseTokenURI via setBaseURI()', async function () {
@@ -603,7 +603,7 @@ describe('OKLA NFT Contract', function () {
       //check that baseTokenURI updated was successful
       let tokenURI = await okLetsGoNFTContract.tokenURI(1)
 
-      expect(tokenURI).to.equal('ipfs://test/1')
+      expect(tokenURI).to.equal('ipfs://test/1.json')
     })
 
     it('Should allow a token owner to transfer that token to another address', async function () {

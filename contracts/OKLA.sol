@@ -354,12 +354,12 @@ contract OKLA is
   {
     require(_exists(_tokenId), 'Nonexistent token');
 
-    return string(abi.encodePacked(_baseURI(), _tokenId.toString()));
+    return string(abi.encodePacked(_baseURI(), _tokenId.toString(), '.json'));
   }
 
   // Contract metadata URI - Support for OpenSea: https://docs.opensea.io/docs/contract-level-metadata
   function contractURI() public view returns (string memory) {
-    return string(abi.encodePacked(_baseURI(), 'contract'));
+    return string(abi.encodePacked(_baseURI(), 'contract.json'));
   }
 
   // Override supportsInterface - See {IERC165-supportsInterface}
