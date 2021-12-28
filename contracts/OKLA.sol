@@ -71,6 +71,9 @@ contract OKLA is
   // Presale whitelist
   mapping(address => bool) public presaleWhitelist;
 
+  // Authorized addresses
+  mapping(address => bool) public authorizedAddresses;
+
   //-- Events --//
   event RoyaltyBasisPoints(uint256 indexed _royaltyBasisPoints);
 
@@ -94,6 +97,12 @@ contract OKLA is
       owner() == _msgSender() || preSaleActive || publicSaleActive,
       'Sale is not active'
     );
+    _;
+  }
+
+  // Owner or authorized addresses modifier
+  modifier whenOwnerOrAuthorizedAddress() {
+    require(owner() == _msgSender() || authorizedAddresses[_msgSender()], 'Not authorized');
     _;
   }
 
@@ -234,7 +243,7 @@ contract OKLA is
 
   // Custom mint function - requires token id and reciever address
   // Mint or transfer token id - Used for cross chain bridging
-  function customMint(uint256 _tokenId, address _reciever) external onlyOwner {
+  function customMint(uint256 _tokenId, address _reciever) external whenOwnerOrAuthorizedAddress {
     require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
 
     if(_exists(_tokenId)) {
@@ -251,12 +260,34 @@ contract OKLA is
 
   // Custom burn function - required token id
   // Transfer token id to contract owner - used for cross chain bridging
-  function customBurn(uint256 _tokenId) external onlyOwner {
+  function customBurn(uint256 _tokenId) external whenOwnerOrAuthorizedAddress {
     require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
 
     require(_exists(_tokenId), 'Nonexistent token');
 
     safeTransferFrom(ownerOf(_tokenId), owner(), _tokenId);
+  }
+
+  // Adds multiple addresses to authorized addresses
+  function addToAuthorizedAddresses(address[] memory _addresses)
+    external
+    onlyOwner
+  {
+    for (uint256 i = 0; i < _addresses.length; i++) {
+      address _address = _addresses[i];
+      authorizedAddresses[_address] = true;
+    }
+  }
+
+  // Removes multiple addresses from authorized addresses
+  function removeFromAuthorizedAddresses(address[] memory _addresses)
+    external
+    onlyOwner
+  {
+    for (uint256 i = 0; i < _addresses.length; i++) {
+      address _address = _addresses[i];
+      authorizedAddresses[_address] = false;
+    }
   }
 
   // Set mint cost
