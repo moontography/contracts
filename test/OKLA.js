@@ -631,6 +631,87 @@ describe('OKLA NFT Contract', function () {
     })
   })
 
+  // Custom Mint/Burn
+  // Used for cross chain bridging 
+  describe('Custom Mint/Burn', function () {
+    it('Should allow only the owner to add an address to the authorized addesses', async function () {
+      const [owner, signer1] = await ethers.getSigners()
+
+      //Not Owner - should fail
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer1)
+          .addToAuthorizedAddresses([signer1.address])
+      ).to.be.revertedWith('Ownable: caller is not the owner')
+
+      //Owner - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(owner)
+          .addToAuthorizedAddresses([signer1.address])
+      ).to.not.be.reverted
+    })
+
+    it('Should allow only the owner and any authorized addresses to call custom functions', async function () {
+      const [owner, signer1, signer2, signer3] = await ethers.getSigners()
+
+      // End public sale
+      await okLetsGoNFTContract.connect(owner).endPublicSale()
+
+      // Pre sale not active
+      expect(await okLetsGoNFTContract.preSaleActive()).to.equal(false)
+
+      // Public sale not active
+      expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(false)
+
+      //Not Owner or authorized - should fail
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer2)
+          .customMint(2, signer3.address)
+      ).to.be.revertedWith('Not authorized')
+
+      //Owner - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(owner)
+          .customMint(2, signer3.address)
+      ).to.not.be.reverted
+
+      //expect token id 2 to exist
+      await expect(okLetsGoNFTContract.tokenURI(2)).to.not.be.reverted
+      expect(await okLetsGoNFTContract.balanceOf(signer3.address)).to.be.eq(1)
+
+      //Authorized - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer1)
+          .customMint(4, signer3.address)
+      ).to.not.be.reverted
+
+      //expect token id 4 to exist
+      await expect(okLetsGoNFTContract.tokenURI(4)).to.not.be.reverted
+      expect(await okLetsGoNFTContract.balanceOf(signer3.address)).to.be.eq(2)
+      
+      //give authorized address approval to transfer token
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer3)
+          .approve(signer1.address, 4)
+      ).to.not.be.reverted
+
+      //Authorized - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer1)
+          .customBurn(4)
+      ).to.not.be.reverted
+      
+      //expect token id 4 to be transferred to owner
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(4998)
+    })
+  })
+
   //Contract Management
   //pause
   //unpause

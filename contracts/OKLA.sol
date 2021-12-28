@@ -244,6 +244,7 @@ contract OKLA is
   // Custom mint function - requires token id and reciever address
   // Mint or transfer token id - Used for cross chain bridging
   function customMint(uint256 _tokenId, address _reciever) external whenOwnerOrAuthorizedAddress {
+    require(!publicSaleActive && !preSaleActive, 'Sales must be inactive');
     require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
 
     if(_exists(_tokenId)) {
@@ -261,10 +262,12 @@ contract OKLA is
   // Custom burn function - required token id
   // Transfer token id to contract owner - used for cross chain bridging
   function customBurn(uint256 _tokenId) external whenOwnerOrAuthorizedAddress {
+    require(!publicSaleActive && !preSaleActive, 'Sales must be inactive');
     require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
 
     require(_exists(_tokenId), 'Nonexistent token');
 
+    // Transfer from token owner to contract owner
     safeTransferFrom(ownerOf(_tokenId), owner(), _tokenId);
   }
 
