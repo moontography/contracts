@@ -23,6 +23,7 @@ const chainIds = {
   avax: 43114,
   bsc: 56,
   ftm: 250,
+  fuji: 43113,
   kcc: 321,
   polygon: 137,
   ganache: 1337,
@@ -96,6 +97,7 @@ const config = {
       'https://data-seed-prebsc-1-s1.binance.org:8545'
     ),
     ftm: createConfig('ftm', 'https://rpc.ftm.tools'),
+    fuji: createConfig('fuji', 'https://api.avax-test.network/ext/bc/C/rpc'),
     kcc: createConfig('kcc', 'https://rpc-mainnet.kcc.network'),
     polygon: createConfig('polygon', 'https://polygon-rpc.com'),
     mainnet: createConfig('mainnet'),
