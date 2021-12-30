@@ -326,6 +326,16 @@ contract OKLA is
     _tokensMintedPerSaleRound.reset();
   }
 
+  // Reset pre sale rounds
+  function resetPreSaleRounds() external onlyOwner {
+    _preSaleRound.reset();
+  }
+
+  // Reset public sale rounds
+  function resetPublicSaleRounds() external onlyOwner {
+    _publicSaleRound.reset();
+  }
+
   // Set payment address
   function setPaymentAddress(address _address) external onlyOwner {
     paymentAddress = _address;
