@@ -19,9 +19,11 @@ const dotenvConfig = conf
 dotenvConfig({ path: resolve(__dirname, './.env') })
 
 const chainIds = {
+  arbitrum: 42161,
   avax: 43114,
   bsc: 56,
   ftm: 250,
+  fuji: 43113,
   kcc: 321,
   polygon: 137,
   ganache: 1337,
@@ -66,6 +68,7 @@ function createConfig(network, rpcUrl = null) {
 const config = {
   defaultNetwork: 'hardhat',
   etherscan: {
+    // apiKey: process.env.ARBISCAN_API_KEY,
     // apiKey: process.env.BSCSCAN_API_KEY,
     apiKey: process.env.ETHERSCAN_API_KEY,
     // apiKey: process.env.FANTOM_API_KEY,
@@ -86,6 +89,7 @@ const config = {
       },
       chainId: chainIds.hardhat,
     },
+    arbitrum: createConfig('arbitrum', 'https://arb1.arbitrum.io/rpc'),
     avax: createConfig('avax', 'https://api.avax.network/ext/bc/C/rpc'),
     bsc: createConfig('bsc', 'https://bsc-dataseed.binance.org'),
     bsctest: createConfig(
@@ -93,6 +97,7 @@ const config = {
       'https://data-seed-prebsc-1-s1.binance.org:8545'
     ),
     ftm: createConfig('ftm', 'https://rpc.ftm.tools'),
+    fuji: createConfig('fuji', 'https://api.avax-test.network/ext/bc/C/rpc'),
     kcc: createConfig('kcc', 'https://rpc-mainnet.kcc.network'),
     polygon: createConfig('polygon', 'https://polygon-rpc.com'),
     mainnet: createConfig('mainnet'),
