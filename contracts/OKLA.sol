@@ -15,7 +15,7 @@ import './utils/Counters.sol';
  * ok.lets.ape. NFT contract
  *
  */
-contract OKLetsApe is
+contract OKLA is
   Ownable,
   ERC721Burnable,
   ERC721Enumerable,
@@ -49,7 +49,7 @@ contract OKLetsApe is
 
   // Token info
   string public constant TOKEN_NAME = 'ok.lets.ape.';
-  string public constant TOKEN_SYMBOL = 'OKLApe';
+  string public constant TOKEN_SYMBOL = 'OKLA';
   uint256 public constant TOTAL_TOKENS = 10000;
 
   // Mint cost and max per wallet
@@ -70,6 +70,9 @@ contract OKLetsApe is
 
   // Presale whitelist
   mapping(address => bool) public presaleWhitelist;
+
+  // Authorized addresses
+  mapping(address => bool) public authorizedAddresses;
 
   //-- Events --//
   event RoyaltyBasisPoints(uint256 indexed _royaltyBasisPoints);
@@ -94,6 +97,12 @@ contract OKLetsApe is
       owner() == _msgSender() || preSaleActive || publicSaleActive,
       'Sale is not active'
     );
+    _;
+  }
+
+  // Owner or authorized addresses modifier
+  modifier whenOwnerOrAuthorizedAddress() {
+    require(owner() == _msgSender() || authorizedAddresses[_msgSender()], 'Not authorized');
     _;
   }
 
@@ -232,6 +241,58 @@ contract OKLetsApe is
     }
   }
 
+  // Custom mint function - requires token id and reciever address
+  // Mint or transfer token id - Used for cross chain bridging
+  function customMint(uint256 _tokenId, address _reciever) external whenOwnerOrAuthorizedAddress {
+    require(!publicSaleActive && !preSaleActive, 'Sales must be inactive');
+    require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
+
+    if(_exists(_tokenId)) {
+      // If token exists, make sure token owner is contract owner
+      require(owner() == ownerOf(_tokenId), 'Token is already owned');
+
+      // Transfer from contract owner to reciever
+      safeTransferFrom(owner(), _reciever, _tokenId);
+    } else {
+      // Safe mint
+      _safeMint(_reciever, _tokenId);
+    }
+  }
+
+  // Custom burn function - required token id
+  // Transfer token id to contract owner - used for cross chain bridging
+  function customBurn(uint256 _tokenId) external whenOwnerOrAuthorizedAddress {
+    require(!publicSaleActive && !preSaleActive, 'Sales must be inactive');
+    require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
+
+    require(_exists(_tokenId), 'Nonexistent token');
+
+    // Transfer from token owner to contract owner
+    safeTransferFrom(ownerOf(_tokenId), owner(), _tokenId);
+  }
+
+  // Adds multiple addresses to authorized addresses
+  function addToAuthorizedAddresses(address[] memory _addresses)
+    external
+    onlyOwner
+  {
+    for (uint256 i = 0; i < _addresses.length; i++) {
+      address _address = _addresses[i];
+      authorizedAddresses[_address] = true;
+    }
+  }
+
+  // Removes multiple addresses from authorized addresses
+  function removeFromAuthorizedAddresses(address[] memory _addresses)
+    external
+    onlyOwner
+  {
+    for (uint256 i = 0; i < _addresses.length; i++) {
+      address _address = _addresses[i];
+      authorizedAddresses[_address] = false;
+    }
+  }
+
   // Set mint cost
   function setMintCost(uint256 _cost) external onlyOwner {
     mintCost = _cost;
@@ -265,6 +326,16 @@ contract OKLetsApe is
     _tokensMintedPerSaleRound.reset();
   }
 
+  // Reset pre sale rounds
+  function resetPreSaleRounds() external onlyOwner {
+    _preSaleRound.reset();
+  }
+
+  // Reset public sale rounds
+  function resetPublicSaleRounds() external onlyOwner {
+    _publicSaleRound.reset();
+  }
+
   // Set payment address
   function setPaymentAddress(address _address) external onlyOwner {
     paymentAddress = _address;
@@ -286,6 +357,7 @@ contract OKLetsApe is
     baseTokenURI = _uri;
   }
 
+
   //-- Public Functions --//
 
   // Get mint cost from mint cost contract, or fallback to local mintCost
@@ -299,12 +371,21 @@ contract OKLetsApe is
   // Get mints left
   function getMintsLeft() public view returns (uint256) {
     uint256 currentSupply = super.totalSupply();
-    return TOTAL_TOKENS.sub(currentSupply);
+    uint256 counterType = _tokenIds._type;
+    uint256 totalTokens = counterType != 0 ? TOTAL_TOKENS.div(2) : TOTAL_TOKENS;
+    return totalTokens.sub(currentSupply);
   }
 
   // Get mints left per sale round
   function getMintsLeftPerSaleRound() public view returns (uint256) {
     return maxMintsPerSaleRound.sub(_tokensMintedPerSaleRound.current());
+  }
+
+  // Get circulating supply - current supply minus contract owner supply
+  function getCirculatingSupply() public view returns (uint256) {
+    uint256 currentSupply = super.totalSupply();
+    uint256 ownerSupply = balanceOf(owner());
+    return currentSupply.sub(ownerSupply);
   }
 
   // Token URI (baseTokenURI + tokenId)
@@ -317,12 +398,12 @@ contract OKLetsApe is
   {
     require(_exists(_tokenId), 'Nonexistent token');
 
-    return string(abi.encodePacked(_baseURI(), _tokenId.toString()));
+    return string(abi.encodePacked(_baseURI(), _tokenId.toString(), '.json'));
   }
 
   // Contract metadata URI - Support for OpenSea: https://docs.opensea.io/docs/contract-level-metadata
   function contractURI() public view returns (string memory) {
-    return string(abi.encodePacked(_baseURI(), 'contract'));
+    return string(abi.encodePacked(_baseURI(), 'contract.json'));
   }
 
   // Override supportsInterface - See {IERC165-supportsInterface}

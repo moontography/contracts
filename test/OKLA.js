@@ -18,16 +18,16 @@ let totalPaymentsCollected
 
 const mintPrice = '0.0542069'
 
-describe('OKLetsApe NFT contract', function () {
+describe('OKLA NFT Contract', function () {
   //before
   before(async () => {
     const [owner] = await ethers.getSigners()
 
     //Contract Factory
-    OkLetsGoNFTFactory = await ethers.getContractFactory('OKLetsApe')
+    OkLetsGoNFTFactory = await ethers.getContractFactory('OKLA')
 
     //deploy contract, store result in global okLetsGoNFTContract var for tests that follow
-    okLetsGoNFTContract = await OkLetsGoNFTFactory.deploy(_baseTokenURI)
+    okLetsGoNFTContract = await OkLetsGoNFTFactory.deploy(_baseTokenURI, 1)
 
     //assert contract was successfully deployed and has an address
     expect(okLetsGoNFTContract.address).to.have.lengthOf(42)
@@ -342,7 +342,7 @@ describe('OKLetsApe NFT contract', function () {
       expect(await okLetsGoNFTContract.balanceOf(signer1.address)).to.be.eq(1)
 
       //expect 51 less mint left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9949)
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4949)
 
       //expect token id 51 to exist
       await expect(okLetsGoNFTContract.tokenURI(51)).to.not.be.reverted
@@ -397,7 +397,7 @@ describe('OKLetsApe NFT contract', function () {
       expect(await okLetsGoNFTContract.balanceOf(signer2.address)).to.be.eq(2)
 
       //expect 2 less mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9947)
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4947)
     })
 
     it('Should not allow minting of more than the max amount of mints per sale round', async function () {
@@ -428,7 +428,7 @@ describe('OKLetsApe NFT contract', function () {
       expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(50)
 
       //expect same amount of mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9947)
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4947)
 
       //expect same amount of mints per sale left
       expect(await okLetsGoNFTContract.getMintsLeftPerSaleRound()).to.be.eq(100)
@@ -443,10 +443,10 @@ describe('OKLetsApe NFT contract', function () {
       //assert there are 60 tokens in owners wallet
       expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(60)
 
-      //expect 9937 mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9937)
+      //expect 4937 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4937)
 
-      //expect 990 mints left per sale round
+      //expect 90 mints left per sale round
       expect(await okLetsGoNFTContract.getMintsLeftPerSaleRound()).to.be.eq(90)
 
       // Try minting 90, should not revert and should end pre/public sale
@@ -459,8 +459,8 @@ describe('OKLetsApe NFT contract', function () {
       //assert there are 150 tokens in owners wallet
       expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(150)
 
-      //expect 9847 mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9847)
+      //expect 4847 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4847)
 
       //expect 0 mints left per sale round
       expect(await okLetsGoNFTContract.getMintsLeftPerSaleRound()).to.be.eq(0)
@@ -491,9 +491,9 @@ describe('OKLetsApe NFT contract', function () {
       // Public sale active
       expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(true)
 
-      // TOTAL_TOKENS = 10000, try minting 9948, should revert
+      // TOTAL_TOKENS = 10000/2 = 5000 (per chain), 4847 mints left, try minting 4848, should revert
       await expect(
-        okLetsGoNFTContract.connect(owner).mint(9948, {
+        okLetsGoNFTContract.connect(owner).mint(4848, {
           value: ethers.utils.parseEther('0'),
         })
       ).to.be.revertedWith('Minting would exceed max supply')
@@ -502,7 +502,7 @@ describe('OKLetsApe NFT contract', function () {
       expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(150)
 
       //expect same amount of mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9847)
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4847)
 
       // Try minting 10, should not revert
       await expect(
@@ -514,8 +514,71 @@ describe('OKLetsApe NFT contract', function () {
       //assert there are 160 tokens in owners wallet
       expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(160)
 
-      //expect 9837 mints left
-      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(9837)
+      //expect 4837 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(4837)
+    })
+
+    it('Should end token id on correct id when minting last token', async function () {
+      const [owner] = await ethers.getSigners()
+
+      // Start public sale
+      await okLetsGoNFTContract.connect(owner).startPublicSale()
+
+      // Pre sale not active
+      expect(await okLetsGoNFTContract.preSaleActive()).to.equal(false)
+
+      // Public sale active
+      expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(true)
+
+      // Set max mints per sale round to 5000 for testing purposes
+      await okLetsGoNFTContract.connect(owner).setMaxMintsPerSaleRound(5000)
+      
+      // 4837 tokens left, try minting all remaining tokens
+      await expect(
+        okLetsGoNFTContract.connect(owner).mint(37, {
+          value: ethers.utils.parseEther('0'),
+        })
+      ).to.not.be.reverted
+      
+      // For testing, mint multiple batches.
+      for (let i = 0; i < 48; i++) {
+        await expect(
+          okLetsGoNFTContract.connect(owner).mint(100, {
+            value: ethers.utils.parseEther('0'),
+          })
+        ).to.not.be.reverted  
+      }
+
+      //assert there are 4997 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(4997)
+
+      //expect same amount of mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(0)
+
+      // Try minting 1, should revert
+      await expect(
+        okLetsGoNFTContract.connect(owner).mint(1, {
+          value: ethers.utils.parseEther('0'),
+        })
+      ).to.be.revertedWith('Minting would exceed max supply')
+
+      //assert there are 4997 tokens in owners wallet
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(4997)
+
+      //expect 0 mints left
+      expect(await okLetsGoNFTContract.getMintsLeft()).to.be.eq(0)
+
+      //check token mint ids - 9998 should not exisit, 9999 should exist, 10000 should not, 10001 should not exists
+      await expect(okLetsGoNFTContract.tokenURI(9998)).to.be.revertedWith(
+        'Nonexistent token'
+      )
+      await expect(okLetsGoNFTContract.tokenURI(9999)).to.not.be.reverted
+      await expect(okLetsGoNFTContract.tokenURI(10000)).to.be.revertedWith(
+        'Nonexistent token'
+      )
+      await expect(okLetsGoNFTContract.tokenURI(10001)).to.be.revertedWith(
+        'Nonexistent token'
+      )
     })
   })
 
@@ -528,7 +591,7 @@ describe('OKLetsApe NFT contract', function () {
     it('Should allow public read of the baseTokenURI via _baseURI', async function () {
       let tokenURI = await okLetsGoNFTContract.tokenURI(1)
 
-      expect(tokenURI).to.equal('ipfs://1')
+      expect(tokenURI).to.equal('ipfs://1.json')
     })
 
     it('Should allow owner to change the baseTokenURI via setBaseURI()', async function () {
@@ -540,7 +603,7 @@ describe('OKLetsApe NFT contract', function () {
       //check that baseTokenURI updated was successful
       let tokenURI = await okLetsGoNFTContract.tokenURI(1)
 
-      expect(tokenURI).to.equal('ipfs://test/1')
+      expect(tokenURI).to.equal('ipfs://test/1.json')
     })
 
     it('Should allow a token owner to transfer that token to another address', async function () {
@@ -550,7 +613,7 @@ describe('OKLetsApe NFT contract', function () {
       expect(await okLetsGoNFTContract.balanceOf(signer1.address)).to.be.eq(1)
       expect(await okLetsGoNFTContract.balanceOf(signer2.address)).to.be.eq(2)
 
-      //safeTransfer token 51 from signer1 to signer2
+      //safeTransfer token 101 from signer1 to signer2
       //safeTransferFrom is an overloaded function so to call it via etherjs do thus:
       await expect(
         okLetsGoNFTContract
@@ -558,13 +621,94 @@ describe('OKLetsApe NFT contract', function () {
           ['safeTransferFrom(address,address,uint256)'](
             signer1.address,
             signer2.address,
-            51
+            101
           )
       ).to.not.be.reverted
 
       //assert current token balances for signer1 and signer 2
       expect(await okLetsGoNFTContract.balanceOf(signer1.address)).to.be.eq(0)
       expect(await okLetsGoNFTContract.balanceOf(signer2.address)).to.be.eq(3)
+    })
+  })
+
+  // Custom Mint/Burn
+  // Used for cross chain bridging 
+  describe('Custom Mint/Burn', function () {
+    it('Should allow only the owner to add an address to the authorized addesses', async function () {
+      const [owner, signer1] = await ethers.getSigners()
+
+      //Not Owner - should fail
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer1)
+          .addToAuthorizedAddresses([signer1.address])
+      ).to.be.revertedWith('Ownable: caller is not the owner')
+
+      //Owner - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(owner)
+          .addToAuthorizedAddresses([signer1.address])
+      ).to.not.be.reverted
+    })
+
+    it('Should allow only the owner and any authorized addresses to call custom functions', async function () {
+      const [owner, signer1, signer2, signer3] = await ethers.getSigners()
+
+      // End public sale
+      await okLetsGoNFTContract.connect(owner).endPublicSale()
+
+      // Pre sale not active
+      expect(await okLetsGoNFTContract.preSaleActive()).to.equal(false)
+
+      // Public sale not active
+      expect(await okLetsGoNFTContract.publicSaleActive()).to.equal(false)
+
+      //Not Owner or authorized - should fail
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer2)
+          .customMint(2, signer3.address)
+      ).to.be.revertedWith('Not authorized')
+
+      //Owner - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(owner)
+          .customMint(2, signer3.address)
+      ).to.not.be.reverted
+
+      //expect token id 2 to exist
+      await expect(okLetsGoNFTContract.tokenURI(2)).to.not.be.reverted
+      expect(await okLetsGoNFTContract.balanceOf(signer3.address)).to.be.eq(1)
+
+      //Authorized - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer1)
+          .customMint(4, signer3.address)
+      ).to.not.be.reverted
+
+      //expect token id 4 to exist
+      await expect(okLetsGoNFTContract.tokenURI(4)).to.not.be.reverted
+      expect(await okLetsGoNFTContract.balanceOf(signer3.address)).to.be.eq(2)
+      
+      //give authorized address approval to transfer token
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer3)
+          .approve(signer1.address, 4)
+      ).to.not.be.reverted
+
+      //Authorized - should succeed
+      await expect(
+        okLetsGoNFTContract
+          .connect(signer1)
+          .customBurn(4)
+      ).to.not.be.reverted
+      
+      //expect token id 4 to be transferred to owner
+      expect(await okLetsGoNFTContract.balanceOf(owner.address)).to.be.eq(4998)
     })
   })
 
@@ -577,14 +721,14 @@ describe('OKLetsApe NFT contract', function () {
       await expect(okLetsGoNFTContract.connect(owner).pause()).to.not.be
         .reverted
 
-      //assert that signer2 cannot send token 51 back to signer1 as the ERC721Pausable has been paused
+      //assert that signer2 cannot send token 101 back to signer1 as the ERC721Pausable has been paused
       await expect(
         okLetsGoNFTContract
           .connect(signer2)
           ['safeTransferFrom(address,address,uint256)'](
             signer2.address,
             signer1.address,
-            51
+            101
           )
       ).to.be.revertedWith('ERC721Pausable: token transfer while paused')
     })
@@ -594,14 +738,14 @@ describe('OKLetsApe NFT contract', function () {
       await expect(okLetsGoNFTContract.connect(owner).unpause()).to.not.be
         .reverted
 
-      //assert that signer2 can now send token 51 back to signer1 as the ERC721Pausable has been unpaused
+      //assert that signer2 can now send token 101 back to signer1 as the ERC721Pausable has been unpaused
       await expect(
         okLetsGoNFTContract
           .connect(signer2)
           ['safeTransferFrom(address,address,uint256)'](
             signer2.address,
             signer1.address,
-            51
+            101
           )
       ).to.not.be.reverted
 
