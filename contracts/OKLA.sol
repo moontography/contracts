@@ -388,6 +388,13 @@ contract OKLA is
     return currentSupply.sub(ownerSupply);
   }
 
+  // Get total tokens based on counter type
+  function getTotalTokens() public view returns (uint256) {
+    uint256 counterType = _tokenIds._type;
+    uint256 totalTokens = counterType != 0 ? TOTAL_TOKENS.div(2) : TOTAL_TOKENS;
+    return totalTokens;
+  }
+
   // Token URI (baseTokenURI + tokenId)
   function tokenURI(uint256 _tokenId)
     public
