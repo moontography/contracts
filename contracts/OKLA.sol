@@ -200,7 +200,7 @@ contract OKLA is
       }
 
       // Set cost to mint
-      costToMint = getMintCost() * _amount;
+      costToMint = getMintCost(_msgSender()) * _amount;
 
       // Get current address total balance
       uint256 currentWalletAmount = super.balanceOf(_msgSender());
@@ -304,8 +304,8 @@ contract OKLA is
       IERC721Helpers _contCheck = IERC721Helpers(_contract);
       // allow setting to zero address to effectively turn off logic
       require(
-        _contCheck.getMintCost() == 0 || _contCheck.getMintCost() > 0,
-        'contract does not implement interface'
+        _contCheck.getMintCost(_msgSender()) == 0 || _contCheck.getMintCost(_msgSender()) > 0,
+        'Contract does not implement interface'
       );
     }
     mintCostContract = _contract;
@@ -361,10 +361,10 @@ contract OKLA is
   //-- Public Functions --//
 
   // Get mint cost from mint cost contract, or fallback to local mintCost
-  function getMintCost() public view returns (uint256) {
+  function getMintCost(address _address) public view returns (uint256) {
     return
       mintCostContract != address(0)
-        ? IERC721Helpers(mintCostContract).getMintCost()
+        ? IERC721Helpers(mintCostContract).getMintCost(_address)
         : mintCost;
   }
 

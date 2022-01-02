@@ -50,7 +50,7 @@ contract NFTMintCostUSD is IERC721Helpers, OKLGWithdrawable {
   /**
    * getMintCost: get the amount in Wei of minting an NFT
    */
-  function getMintCost() external view override returns (uint256) {
+  function getMintCost(address _address) external view override returns (uint256) {
     if (priceUSDCents == 0) return 0;
     return getPriceWei(priceUSDCents);
   }

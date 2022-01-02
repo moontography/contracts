@@ -9,5 +9,5 @@ interface IERC721Helpers {
   /**
    * @dev Returns mint cost in wei.
    */
-  function getMintCost() external view returns (uint256);
+  function getMintCost(address _address) external view returns (uint256);
 }
