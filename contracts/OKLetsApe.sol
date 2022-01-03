@@ -15,7 +15,7 @@ import './utils/Counters.sol';
  * ok.lets.ape. NFT contract
  *
  */
-contract OKLA is
+contract OKLetsApe is
   Ownable,
   ERC721Burnable,
   ERC721Enumerable,
@@ -39,10 +39,10 @@ contract OKLA is
   string private baseTokenURI; // baseTokenURI can point to IPFS folder like https://ipfs.io/ipfs/{cid}/
 
   // Payment address
-  address private paymentAddress = 0xDb3AC91239b79Fae75c21E1f75a189b1D75dD906;
+  address private paymentAddress;
 
   // Royalties address
-  address private royaltyAddress = 0xDb3AC91239b79Fae75c21E1f75a189b1D75dD906;
+  address private royaltyAddress;
 
   // Royalties basis points (percentage using 2 decimals - 10000 = 100, 0 = 0)
   uint256 private royaltyBasisPoints = 1000; // 10%
@@ -102,7 +102,10 @@ contract OKLA is
 
   // Owner or authorized addresses modifier
   modifier whenOwnerOrAuthorizedAddress() {
-    require(owner() == _msgSender() || authorizedAddresses[_msgSender()], 'Not authorized');
+    require(
+      owner() == _msgSender() || authorizedAddresses[_msgSender()],
+      'Not authorized'
+    );
     _;
   }
 
@@ -111,6 +114,8 @@ contract OKLA is
     ERC721(TOKEN_NAME, TOKEN_SYMBOL)
   {
     baseTokenURI = _baseTokenURI;
+    paymentAddress = owner();
+    royaltyAddress = owner();
     _tokenIds.setType(counterType);
   }
 
@@ -243,11 +248,17 @@ contract OKLA is
 
   // Custom mint function - requires token id and reciever address
   // Mint or transfer token id - Used for cross chain bridging
-  function customMint(uint256 _tokenId, address _reciever) external whenOwnerOrAuthorizedAddress {
+  function customMint(uint256 _tokenId, address _reciever)
+    external
+    whenOwnerOrAuthorizedAddress
+  {
     require(!publicSaleActive && !preSaleActive, 'Sales must be inactive');
-    require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
+    require(
+      _tokenId > 0 && _tokenId <= TOTAL_TOKENS,
+      'Must pass valid token id'
+    );
 
-    if(_exists(_tokenId)) {
+    if (_exists(_tokenId)) {
       // If token exists, make sure token owner is contract owner
       require(owner() == ownerOf(_tokenId), 'Token is already owned');
 
@@ -263,7 +274,10 @@ contract OKLA is
   // Transfer token id to contract owner - used for cross chain bridging
   function customBurn(uint256 _tokenId) external whenOwnerOrAuthorizedAddress {
     require(!publicSaleActive && !preSaleActive, 'Sales must be inactive');
-    require(_tokenId > 0 && _tokenId <= TOTAL_TOKENS, 'Must pass valid token id');
+    require(
+      _tokenId > 0 && _tokenId <= TOTAL_TOKENS,
+      'Must pass valid token id'
+    );
 
     require(_exists(_tokenId), 'Nonexistent token');
 
@@ -304,7 +318,8 @@ contract OKLA is
       IERC721Helpers _contCheck = IERC721Helpers(_contract);
       // allow setting to zero address to effectively turn off logic
       require(
-        _contCheck.getMintCost(_msgSender()) == 0 || _contCheck.getMintCost(_msgSender()) > 0,
+        _contCheck.getMintCost(_msgSender()) == 0 ||
+          _contCheck.getMintCost(_msgSender()) > 0,
         'Contract does not implement interface'
       );
     }
@@ -356,7 +371,6 @@ contract OKLA is
   function setBaseURI(string memory _uri) external onlyOwner {
     baseTokenURI = _uri;
   }
-
 
   //-- Public Functions --//
 

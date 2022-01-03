@@ -13,6 +13,9 @@ contract NFTMintCostUSD is IERC721Helpers, OKLGWithdrawable {
   AggregatorV3Interface internal priceFeed;
   uint256 public priceUSDCents;
 
+  uint256 discountAmountPercent = 25;
+  mapping(address => bool) public discounted;
+
   constructor(address _priceFeed, uint256 _priceCents) {
     // https://docs.chain.link/docs/reference-contracts/
     // https://github.com/pcaversaccio/chainlink-price-feed/blob/main/README.md
@@ -47,11 +50,34 @@ contract NFTMintCostUSD is IERC721Helpers, OKLGWithdrawable {
     priceUSDCents = _priceUSDCents;
   }
 
+  function setDiscountAmountPercent(uint256 _percent) external onlyOwner {
+    require(_percent <= 100, 'cannot be discounted more than 100%');
+    discountAmountPercent = _percent;
+  }
+
+  function setDiscountedAddresses(address[] memory _wallets, bool _isDiscounted)
+    external
+    onlyOwner
+  {
+    for (uint256 _i = 0; _i < _wallets.length; _i++) {
+      discounted[_wallets[_i]] = _isDiscounted;
+    }
+  }
+
   /**
    * getMintCost: get the amount in Wei of minting an NFT
    */
-  function getMintCost(address _address) external view override returns (uint256) {
+  function getMintCost(address _wallet)
+    external
+    view
+    override
+    returns (uint256)
+  {
     if (priceUSDCents == 0) return 0;
-    return getPriceWei(priceUSDCents);
+    uint256 basePriceWei = getPriceWei(priceUSDCents);
+    if (discounted[_wallet]) {
+      return basePriceWei - ((basePriceWei * discountAmountPercent) / 100);
+    }
+    return basePriceWei;
   }
 }
