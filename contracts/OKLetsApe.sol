@@ -49,7 +49,7 @@ contract OKLetsApe is
 
   // Token info
   string public constant TOKEN_NAME = 'ok.lets.ape.';
-  string public constant TOKEN_SYMBOL = 'OKLA';
+  string public constant TOKEN_SYMBOL = 'OKLApe';
   uint256 public constant TOTAL_TOKENS = 10000;
 
   // Mint cost and max per wallet
