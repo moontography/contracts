@@ -755,31 +755,35 @@ contract OKLG is Context, IERC20, Ownable {
   }
 
   function setReflectionFeePercent(uint256 _newFee) external onlyOwner {
-    require(_newFee <= 100, 'fee cannot exceed 100%');
+    require(_newFee <= 10, 'fee cannot exceed 10%');
     reflectionFee = _newFee;
   }
 
   function setTreasuryFeePercent(uint256 _newFee) external onlyOwner {
-    require(_newFee <= 100, 'fee cannot exceed 100%');
+    require(_newFee <= 10, 'fee cannot exceed 10%');
     treasuryFee = _newFee;
   }
 
   function setETHRewardsFeeFeePercent(uint256 _newFee) external onlyOwner {
-    require(_newFee <= 100, 'fee cannot exceed 100%');
+    require(_newFee <= 10, 'fee cannot exceed 10%');
     ethRewardsFee = _newFee;
+  }
+
+  function setBuybackFeePercent(uint256 _newFee) external onlyOwner {
+    require(_newFee <= 10, 'fee cannot exceed 10%');
+    buybackFee = _newFee;
   }
 
   function setFeeSellMultiplier(uint256 multiplier) external onlyOwner {
     require(
-      multiplier > 0 && multiplier <= 10,
-      'must be greater than 0 and less than or equal to 10'
+      multiplier > 0 && multiplier <= 5,
+      'must be greater than 0 and less than or equal to 5'
+    );
+    require(
+      _liquidityFeeAggregate(address(0)).mul(multiplier) < 40,
+      'multiplier should not make total fee more than 40%'
     );
     feeSellMultiplier = multiplier;
-  }
-
-  function setBuybackFeePercent(uint256 _newFee) external onlyOwner {
-    require(_newFee <= 100, 'fee cannot exceed 100%');
-    buybackFee = _newFee;
   }
 
   function setTreasuryAddress(address _treasuryWallet) external onlyOwner {
@@ -936,7 +940,7 @@ contract OKLG is Context, IERC20, Ownable {
   }
 
   function emergencyWithdraw() external onlyOwner {
-    payable(owner()).send(address(this).balance);
+    payable(owner()).call{ value: address(this).balance }('');
   }
 
   // to recieve ETH from uniswapV2Router when swaping
