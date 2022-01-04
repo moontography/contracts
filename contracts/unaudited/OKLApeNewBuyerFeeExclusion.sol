@@ -12,7 +12,8 @@ contract OKLApeNewBuyerFeeExclusion is IConditional, Ownable {
   uint256 public maxOKLGBalance = 10000 * 10**9;
   uint256 public minNFTBalance = 1;
 
-  constructor(address _oklApe) {
+  constructor(address _oklg, address _oklApe) {
+    oklg = _oklg;
     oklApe = _oklApe;
   }
 

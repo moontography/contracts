@@ -28,8 +28,8 @@ contract OKLApeRewardsBooster is IMultiplier, OKLGWithdrawable {
   IERC721 oklApe;
   Booster[] multipliers;
 
-  constructor(address _oklgAddy, address _oklApe) {
-    oklg = IERC20Decimals(_oklgAddy);
+  constructor(address _oklg, address _oklApe) {
+    oklg = IERC20Decimals(_oklg);
     oklApe = IERC721(_oklApe);
 
     // seed initial rewards boosters
