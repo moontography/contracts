@@ -13,7 +13,7 @@ contract NFTMintCostUSD is IERC721Helpers, OKLGWithdrawable {
   AggregatorV3Interface internal priceFeed;
   uint256 public priceUSDCents;
 
-  uint256 discountAmountPercent = 25;
+  uint256 public discountAmountPercent = 25;
   mapping(address => bool) public discounted;
 
   constructor(address _priceFeed, uint256 _priceCents) {
