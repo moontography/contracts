@@ -19,8 +19,10 @@ contract OKLApeNewBuyerFeeExclusion is IConditional, Ownable {
 
   function passesTest(address wallet) external view override returns (bool) {
     return
-      IERC20(oklg).balanceOf(wallet) <= maxOKLGBalance &&
-      IERC721(oklApe).balanceOf(wallet) >= minNFTBalance;
+      wallet == address(0)
+        ? false
+        : IERC20(oklg).balanceOf(wallet) <= maxOKLGBalance &&
+          IERC721(oklApe).balanceOf(wallet) >= minNFTBalance;
   }
 
   function setOKLGAddress(address _oklg) external onlyOwner {

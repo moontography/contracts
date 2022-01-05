@@ -34,28 +34,34 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
     oklApe = IERC721(_oklApe);
 
     // seed initial rewards boosters
-    multipliers[0] = Booster({
-      baseBoost: 50,
-      maxOKLGBalance: uint256(15_000_000).mul(10**oklg.decimals()),
-      maxNFTBalance: 6
-    });
+    multipliers.push(
+      Booster({
+        baseBoost: 50,
+        maxOKLGBalance: uint256(15_000_000).mul(10**oklg.decimals()),
+        maxNFTBalance: 6
+      })
+    );
 
-    multipliers[1] = Booster({
-      baseBoost: 25,
-      maxOKLGBalance: uint256(80_000_000).mul(10**oklg.decimals()),
-      maxNFTBalance: 8
-    });
+    multipliers.push(
+      Booster({
+        baseBoost: 25,
+        maxOKLGBalance: uint256(80_000_000).mul(10**oklg.decimals()),
+        maxNFTBalance: 8
+      })
+    );
 
-    multipliers[2] = Booster({
-      baseBoost: 15,
-      maxOKLGBalance: uint256(420_690_000_000).mul(10**oklg.decimals()),
-      maxNFTBalance: 10
-    });
+    multipliers.push(
+      Booster({
+        baseBoost: 15,
+        maxOKLGBalance: uint256(420_690_000_000).mul(10**oklg.decimals()),
+        maxNFTBalance: 10
+      })
+    );
   }
 
   // required by rewards booster logic in rewards contract to determine if eligible for booster at all
   function passesTest(address wallet) external view override returns (bool) {
-    return oklApe.balanceOf(wallet) >= 0;
+    return wallet == address(0) ? false : oklApe.balanceOf(wallet) >= 0;
   }
 
   // returns number indicating percentage boost (0 == 0%, 1 == 1%, etc.)
@@ -65,6 +71,7 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
     override
     returns (uint256)
   {
+    if (wallet == address(0)) return 0;
     uint256 _userOKLGBalance = oklg.balanceOf(wallet);
     uint256 _userNFTBalance = oklApe.balanceOf(wallet);
     if (_userOKLGBalance == 0 || _userNFTBalance == 0) return 0;
@@ -100,7 +107,7 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
   function setAllMultipliers(Booster[] memory _boosters) external onlyOwner {
     delete multipliers;
     for (uint256 _i = 0; _i < _boosters.length; _i++) {
-      multipliers[_i] = _boosters[_i];
+      multipliers.push(_boosters[_i]);
     }
   }
 }
