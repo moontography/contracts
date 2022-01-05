@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import '../interfaces/IConditional.sol';
 import '../interfaces/IMultiplier.sol';
 import '../OKLGWithdrawable.sol';
 
@@ -15,7 +16,7 @@ interface IERC20Decimals is IERC20 {
  * @title OKLApeRewardsBooster
  * @dev Calculates the boost amount for OKLG native rewards.
  */
-contract OKLApeRewardsBooster is IMultiplier, OKLGWithdrawable {
+contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
   using SafeMath for uint256;
 
   struct Booster {
@@ -50,6 +51,11 @@ contract OKLApeRewardsBooster is IMultiplier, OKLGWithdrawable {
       maxOKLGBalance: uint256(420_690_000_000).mul(10**oklg.decimals()),
       maxNFTBalance: 10
     });
+  }
+
+  // required by rewards booster logic in rewards contract to determine if eligible for booster at all
+  function passesTest(address wallet) external view override returns (bool) {
+    return oklApe.balanceOf(wallet) >= 0;
   }
 
   // returns number indicating percentage boost (0 == 0%, 1 == 1%, etc.)
