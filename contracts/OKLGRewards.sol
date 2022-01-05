@@ -4,11 +4,8 @@ pragma solidity ^0.8.4;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import './interfaces/IConditional.sol';
+import './interfaces/IMultiplier.sol';
 import './OKLGWithdrawable.sol';
-
-interface IMultipler {
-  function getMultiplier(address wallet) external view returns (uint256);
-}
 
 interface IOKLG is IERC20 {
   function getLastETHRewardsClaim(address wallet)
@@ -51,7 +48,7 @@ contract OKLGRewards is OKLGWithdrawable {
 
   function setBoostMultiplierContract(address _contract) external onlyOwner {
     if (_contract != address(0)) {
-      IMultipler _contCheck = IMultipler(_contract);
+      IMultiplier _contCheck = IMultiplier(_contract);
       // allow setting to zero address to effectively turn off check logic
       require(
         _contCheck.getMultiplier(address(0)) >= 0,
@@ -95,7 +92,7 @@ contract OKLGRewards is OKLGWithdrawable {
       boostRewardsMultiplierContract == address(0)
         ? boostRewardsPercent
         : boostRewardsPercent.mul(
-          IMultipler(boostRewardsMultiplierContract).getMultiplier(wallet)
+          IMultiplier(boostRewardsMultiplierContract).getMultiplier(wallet)
         );
   }
 
