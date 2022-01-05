@@ -110,13 +110,13 @@ contract OKLetsApe is
   }
 
   // -- Constructor --//
-  constructor(string memory _baseTokenURI, uint8 counterType)
+  constructor(string memory _baseTokenURI, uint8 _counterType)
     ERC721(TOKEN_NAME, TOKEN_SYMBOL)
   {
     baseTokenURI = _baseTokenURI;
     paymentAddress = owner();
     royaltyAddress = owner();
-    _tokenIds.setType(counterType);
+    _tokenIds.setType(_counterType);
   }
 
   // -- External Functions -- //
