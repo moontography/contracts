@@ -61,7 +61,7 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
 
   // required by rewards booster logic in rewards contract to determine if eligible for booster at all
   function passesTest(address wallet) external view override returns (bool) {
-    return wallet == address(0) ? false : oklApe.balanceOf(wallet) >= 0;
+    return wallet == address(0) ? false : oklApe.balanceOf(wallet) >= 1;
   }
 
   // returns number indicating percentage boost (0 == 0%, 1 == 1%, etc.)
@@ -73,8 +73,10 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
   {
     if (wallet == address(0)) return 0;
     uint256 _userOKLGBalance = oklg.balanceOf(wallet);
+    if (_userOKLGBalance == 0) return 0;
+
     uint256 _userNFTBalance = oklApe.balanceOf(wallet);
-    if (_userOKLGBalance == 0 || _userNFTBalance == 0) return 0;
+    if (_userNFTBalance == 0) return 0;
 
     for (uint256 _i = 0; _i < multipliers.length; _i++) {
       Booster memory mult = multipliers[_i];
