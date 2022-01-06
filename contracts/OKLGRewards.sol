@@ -91,9 +91,7 @@ contract OKLGRewards is OKLGWithdrawable {
     return
       boostRewardsMultiplierContract == address(0)
         ? boostRewardsPercent
-        : boostRewardsPercent.mul(
-          IMultiplier(boostRewardsMultiplierContract).getMultiplier(wallet)
-        );
+        : IMultiplier(boostRewardsMultiplierContract).getMultiplier(wallet);
   }
 
   function calculateETHRewards(address wallet) public view returns (uint256) {
