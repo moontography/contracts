@@ -3,41 +3,44 @@ pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
-import './interfaces/IDividendDistributor.sol';
 import './OKLGWithdrawable.sol';
 
-contract OKLGDividendDistributor is IDividendDistributor, OKLGWithdrawable {
+contract OKLGDividendDistributor is OKLGWithdrawable {
   using SafeMath for uint256;
 
   struct Share {
-    uint256 amount;
     uint256 totalExcluded; // excluded dividend
     uint256 totalRealised;
   }
 
+  address public shareholderToken;
+  uint256 totalShares;
   address wrappedNative;
   IUniswapV2Router02 router;
 
+  // used to fetch in a frontend to get full list
+  // of tokens that dividends can be claimed
   address[] public tokens;
   mapping(address => bool) tokenAwareness;
 
   address[] shareholders;
-  mapping(address => uint256) shareholderIndexes;
   mapping(address => uint256) shareholderClaims;
 
   mapping(address => mapping(address => Share)) public shares;
 
-  mapping(address => uint256) public totalShares;
   mapping(address => uint256) public totalDividends;
   mapping(address => uint256) public totalDistributed; // to be shown in UI
   mapping(address => uint256) public dividendsPerShare;
   uint256 public dividendsAccFactor = 10**36;
 
-  uint256 public minPeriod = 12 hours;
-  uint256 public minDistribution = 10 * (10**18);
-
-  constructor(address _dexRouter, address _wrappedNative) {
+  constructor(
+    address _dexRouter,
+    address _shareholderToken,
+    address _wrappedNative
+  ) {
     router = IUniswapV2Router02(_dexRouter);
+    shareholderToken = _shareholderToken;
+    totalShares = IERC20(shareholderToken).totalSupply();
     wrappedNative = _wrappedNative;
   }
 
@@ -45,55 +48,21 @@ contract OKLGDividendDistributor is IDividendDistributor, OKLGWithdrawable {
     return tokens;
   }
 
-  function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution)
-    external
-    override
-    onlyOwner
-  {
-    minPeriod = _minPeriod;
-    minDistribution = _minDistribution;
-  }
-
-  function setShare(
-    address token,
-    address shareholder,
-    uint256 amount
-  ) external override onlyOwner {
-    if (shares[shareholder][token].amount > 0) {
-      distributeDividend(token, shareholder, false);
-    }
-
-    if (amount > 0 && shares[shareholder][token].amount == 0) {
-      addShareholder(shareholder);
-    } else if (amount == 0 && shares[shareholder][token].amount > 0) {
-      removeShareholder(shareholder);
-    }
-
-    if (!tokenAwareness[token]) {
-      tokenAwareness[token] = true;
-      tokens.push(token);
-    }
-    totalShares[token] = totalShares[token]
-      .sub(shares[shareholder][token].amount)
-      .add(amount);
-    shares[shareholder][token].amount = amount;
-    shares[shareholder][token].totalExcluded = getCumulativeDividends(
-      token,
-      shares[shareholder][token].amount
-    );
-  }
-
   // tokenAddress == address(0) means native token
   // any other token should be ERC20 listed on DEX router provided in constructor
   function deposit(address tokenAddress, uint256 erc20DirectAmount)
     external
     payable
-    override
   {
     require(
       erc20DirectAmount > 0 || msg.value > 0,
       'value must be greater than 0'
     );
+
+    if (!tokenAwareness[tokenAddress]) {
+      tokenAwareness[tokenAddress] = true;
+      tokens.push(tokenAddress);
+    }
 
     IERC20 token;
     uint256 amount;
@@ -125,7 +94,7 @@ contract OKLGDividendDistributor is IDividendDistributor, OKLGWithdrawable {
 
     totalDividends[tokenAddress] = totalDividends[tokenAddress].add(amount);
     dividendsPerShare[tokenAddress] = dividendsPerShare[tokenAddress].add(
-      dividendsAccFactor.mul(amount).div(totalShares[tokenAddress])
+      dividendsAccFactor.mul(amount).div(totalShares)
     );
   }
 
@@ -134,7 +103,8 @@ contract OKLGDividendDistributor is IDividendDistributor, OKLGWithdrawable {
     address shareholder,
     bool compound
   ) internal {
-    if (shares[shareholder][token].amount == 0) {
+    uint256 shareholderAmount = IERC20(shareholderToken).balanceOf(shareholder);
+    if (shareholderAmount == 0) {
       return;
     }
 
@@ -146,7 +116,7 @@ contract OKLGDividendDistributor is IDividendDistributor, OKLGWithdrawable {
         if (compound) {
           address[] memory path = new address[](2);
           path[0] = wrappedNative;
-          path[1] = token;
+          path[1] = shareholderToken;
           router.swapExactETHForTokensSupportingFeeOnTransferTokens{
             value: amount
           }(0, path, shareholder, block.timestamp);
@@ -162,7 +132,7 @@ contract OKLGDividendDistributor is IDividendDistributor, OKLGWithdrawable {
         .add(amount);
       shares[shareholder][token].totalExcluded = getCumulativeDividends(
         token,
-        shares[shareholder][token].amount
+        shareholderAmount
       );
     }
   }
@@ -179,13 +149,14 @@ returns the  unpaid earnings
     view
     returns (uint256)
   {
-    if (shares[shareholder][token].amount == 0) {
+    uint256 shareholderAmount = IERC20(shareholderToken).balanceOf(shareholder);
+    if (shareholderAmount == 0) {
       return 0;
     }
 
     uint256 shareholderTotalDividends = getCumulativeDividends(
       token,
-      shares[shareholder][token].amount
+      shareholderAmount
     );
     uint256 shareholderTotalExcluded = shares[shareholder][token].totalExcluded;
 
@@ -204,19 +175,9 @@ returns the  unpaid earnings
     return share.mul(dividendsPerShare[token]).div(dividendsAccFactor);
   }
 
-  function addShareholder(address shareholder) internal {
-    shareholderIndexes[shareholder] = shareholders.length;
-    shareholders.push(shareholder);
-  }
-
-  function removeShareholder(address shareholder) internal {
-    shareholders[shareholderIndexes[shareholder]] = shareholders[
-      shareholders.length - 1
-    ];
-    shareholderIndexes[
-      shareholders[shareholders.length - 1]
-    ] = shareholderIndexes[shareholder];
-    shareholders.pop();
+  function setShareholderToken(address _token) external onlyOwner {
+    shareholderToken = _token;
+    totalShares = IERC20(shareholderToken).totalSupply();
   }
 
   receive() external payable {}
