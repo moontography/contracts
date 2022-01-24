@@ -108,26 +108,34 @@ contract MTGYTokenLocker is OKLGProduct {
       'All tokens have been withdrawn from this locker.'
     );
 
-    bool _canWithdraw = msg.sender == _locker.owner;
-    if (!_canWithdraw) {
+    bool _isWithdrawableUser = msg.sender == _locker.owner;
+    if (!_isWithdrawableUser) {
       for (uint256 _i = 0; _i < _locker.withdrawable.length; _i++) {
         if (_locker.withdrawable[_i] == msg.sender) {
-          _canWithdraw = true;
+          _isWithdrawableUser = true;
           break;
         }
       }
     }
-    require(_canWithdraw, 'Must be locker owner or a withdrawable wallet.');
+    require(
+      _isWithdrawableUser,
+      'Must be locker owner or a withdrawable wallet.'
+    );
+
+    // TODO
+    // bool _isPastTimelock =
 
     if (_locker.isNft) {
+      require(
+        block.timestamp > _locker.end,
+        'Must wait until locker expires to withdraw.'
+      );
       IERC721 _token = IERC721(_locker.token);
       _token.transferFrom(address(this), msg.sender, _amountOrTokenId);
     } else {
       uint256 _maxAmount = maxWithdrawableTokens(_idx);
       require(
-        _amountOrTokenId > 0 &&
-          _maxAmount > 0 &&
-          _maxAmount <= _amountOrTokenId,
+        _amountOrTokenId > 0 && _amountOrTokenId <= _maxAmount,
         'Make sure you enter a valid withdrawable amount and not more than has vested.'
       );
       IERC20 _token = IERC20(_locker.token);
