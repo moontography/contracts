@@ -20,6 +20,8 @@ contract OKLGPasswordManager is OKLGProduct {
     bool isDeleted;
   }
 
+  mapping(address => mapping(string => uint256)) public userAccountIdIndexes;
+
   // the normal mapping of all accounts owned by a user
   mapping(address => AccountInfo[]) public userAccounts;
 
@@ -62,15 +64,15 @@ contract OKLGPasswordManager is OKLGProduct {
     string memory _newAccountData
   ) external returns (bool) {
     AccountInfo[] memory _userInfo = userAccounts[msg.sender];
-    for (uint256 _i = 0; _i < _userInfo.length; _i++) {
-      if (_compareStr(_userInfo[_i].id, _id)) {
-        userAccounts[msg.sender][_i].iv = _newIv;
-        userAccounts[msg.sender][_i].timestamp = block.timestamp;
-        userAccounts[msg.sender][_i].ciphertext = _newAccountData;
-        return true;
-      }
-    }
-    return false;
+    uint256 _idx = userAccountIdIndexes[msg.sender][_id];
+    require(
+      _compareStr(_id, _userInfo[_idx].id),
+      'the ID provided does not match the account stored.'
+    );
+    userAccounts[msg.sender][_idx].iv = _newIv;
+    userAccounts[msg.sender][_idx].timestamp = block.timestamp;
+    userAccounts[msg.sender][_idx].ciphertext = _newAccountData;
+    return true;
   }
 
   function addAccount(
@@ -79,6 +81,12 @@ contract OKLGPasswordManager is OKLGProduct {
     string memory _ciphertext
   ) external payable {
     _payForService(0);
+
+    require(
+      userAccountIdIndexes[msg.sender][_id] == 0,
+      'this ID is already being used, the account should be updated instead'
+    );
+    userAccountIdIndexes[msg.sender][_id] = userAccounts[msg.sender].length;
 
     userAccounts[msg.sender].push(
       AccountInfo({
@@ -114,14 +122,14 @@ contract OKLGPasswordManager is OKLGProduct {
 
   function deleteAccount(string memory _id) external returns (bool) {
     AccountInfo[] memory _userInfo = userAccounts[msg.sender];
-    for (uint256 _i = 0; _i < _userInfo.length; _i++) {
-      if (_compareStr(_userInfo[_i].id, _id)) {
-        userAccounts[msg.sender][_i].timestamp = block.timestamp;
-        userAccounts[msg.sender][_i].isDeleted = true;
-        return true;
-      }
-    }
-    return false;
+    uint256 _idx = userAccountIdIndexes[msg.sender][_id];
+    require(
+      _compareStr(_id, _userInfo[_idx].id),
+      'the ID provided does not match the account stored.'
+    );
+    userAccounts[msg.sender][_idx].timestamp = block.timestamp;
+    userAccounts[msg.sender][_idx].isDeleted = true;
+    return true;
   }
 
   function _compareStr(string memory a, string memory b)

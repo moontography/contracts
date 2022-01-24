@@ -11,9 +11,7 @@ import './interfaces/IERC721Helpers.sol';
 import './utils/Counters.sol';
 
 /**
- *
  * ok.lets.ape. NFT contract
- *
  */
 contract OKLetsApe is
   Ownable,
@@ -265,6 +263,10 @@ contract OKLetsApe is
       // Transfer from contract owner to reciever
       safeTransferFrom(owner(), _reciever, _tokenId);
     } else {
+      require(
+        _tokenIds.current() > _tokenId,
+        'Cannot custom mint NFT if it is still in line for standard mint'
+      );
       // Safe mint
       _safeMint(_reciever, _tokenId);
     }

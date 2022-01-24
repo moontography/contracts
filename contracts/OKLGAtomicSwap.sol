@@ -59,17 +59,22 @@ contract OKLGAtomicSwap is OKLGProduct {
     return lastUserCreatedContract[_addy];
   }
 
-  function setOracleAddress(address _oracleAddress, bool _changeAll)
-    external
-    onlyOwner
-  {
+  function setOracleAddress(
+    address _oracleAddress,
+    bool _changeAll,
+    uint256 _start,
+    uint256 _max
+  ) external onlyOwner {
     oracleAddress = payable(_oracleAddress);
     if (_changeAll) {
-      for (uint256 _i = 0; _i < targetSwapContracts.length; _i++) {
+      uint256 _index = 0;
+      uint256 _numLoops = _max > 0 ? _max : 50;
+      while (_index + _start < _start + _numLoops) {
         OKLGAtomicSwapInstance _contract = OKLGAtomicSwapInstance(
-          targetSwapContracts[_i].sourceContract
+          targetSwapContracts[_index].sourceContract
         );
         _contract.setOracleAddress(oracleAddress);
+        _index++;
       }
     }
   }

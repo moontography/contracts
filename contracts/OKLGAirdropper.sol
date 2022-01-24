@@ -27,15 +27,21 @@ contract OKLGAirdropper is OKLGProduct {
   {
     _payForService(0);
 
+    uint256 _amountSent = 0;
     bool _wasSent = true;
 
     for (uint256 _i = 0; _i < _addressesAndAmounts.length; _i++) {
       Receiver memory _user = _addressesAndAmounts[_i];
+      _amountSent += _user.amountOrTokenId;
       (bool sent, ) = _user.userAddress.call{ value: _user.amountOrTokenId }(
         ''
       );
       _wasSent = _wasSent == false ? false : sent;
     }
+    require(
+      msg.value >= _amountSent,
+      'ETH provided by user should accommodate amount being airdropped'
+    );
     return _wasSent;
   }
 

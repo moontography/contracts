@@ -37,6 +37,7 @@ contract OKLGFaaSToken is ERC20 {
   }
 
   struct StakerInfo {
+    uint256 amountStaked;
     uint256 blockOriginallyStaked; // block the user originally staked
     uint256 timeOriginallyStaked; // unix timestamp in seconds that the user originally staked
     uint256 blockLastHarvested; // the block the user last claimed/harvested rewards
@@ -208,10 +209,11 @@ contract OKLGFaaSToken is ERC20 {
     }
     _mint(msg.sender, _finalAmountTransferred);
     StakerInfo storage _staker = stakers[msg.sender];
+    _staker.amountStaked = _staker.amountStaked.add(_finalAmountTransferred);
     _staker.blockOriginallyStaked = block.number;
     _staker.timeOriginallyStaked = block.timestamp;
     _staker.blockLastHarvested = block.number;
-    _staker.rewardDebt = balanceOf(msg.sender).mul(pool.accERC20PerShare).div(
+    _staker.rewardDebt = _staker.amountStaked.mul(pool.accERC20PerShare).div(
       1e36
     );
     for (uint256 _i = 0; _i < _tokenIds.length; _i++) {
@@ -224,7 +226,7 @@ contract OKLGFaaSToken is ERC20 {
   // pass 'false' for _shouldHarvest for emergency unstaking without claiming rewards
   function unstakeTokens(uint256 _amount, bool _shouldHarvest) external {
     StakerInfo memory _staker = stakers[msg.sender];
-    uint256 _userBalance = balanceOf(msg.sender);
+    uint256 _userBalance = _staker.amountStaked;
     require(
       pool.isStakedNft ? true : _amount <= _userBalance,
       'user can only unstake amount they have currently staked or less'
@@ -252,7 +254,12 @@ contract OKLGFaaSToken is ERC20 {
     uint256 _amountToRemoveFromStaked = pool.isStakedNft
       ? _userBalance
       : _amount;
-    transfer(_burner, _amountToRemoveFromStaked);
+    transfer(
+      _burner,
+      _amountToRemoveFromStaked > balanceOf(msg.sender)
+        ? balanceOf(msg.sender)
+        : _amountToRemoveFromStaked
+    );
     if (pool.isStakedNft) {
       for (uint256 _i = 0; _i < _staker.nftTokenIds.length; _i++) {
         _stakedERC721.transferFrom(
@@ -270,6 +277,10 @@ contract OKLGFaaSToken is ERC20 {
 
     if (balanceOf(msg.sender) <= 0) {
       delete stakers[msg.sender];
+    } else {
+      _staker.amountStaked = _staker.amountStaked.sub(
+        _amountToRemoveFromStaked
+      );
     }
     _updNumStaked(_amountToRemoveFromStaked, 'remove');
     emit Withdraw(msg.sender, _amountToRemoveFromStaked);
@@ -277,13 +288,18 @@ contract OKLGFaaSToken is ERC20 {
 
   function emergencyUnstake() external {
     StakerInfo memory _staker = stakers[msg.sender];
-    uint256 _amountToRemoveFromStaked = balanceOf(msg.sender);
+    uint256 _amountToRemoveFromStaked = _staker.amountStaked;
     require(
       _amountToRemoveFromStaked > 0,
       'user can only unstake if they have tokens in the pool'
     );
 
-    transfer(_burner, _amountToRemoveFromStaked);
+    transfer(
+      _burner,
+      _amountToRemoveFromStaked > balanceOf(msg.sender)
+        ? balanceOf(msg.sender)
+        : _amountToRemoveFromStaked
+    );
     if (pool.isStakedNft) {
       for (uint256 _i = 0; _i < _staker.nftTokenIds.length; _i++) {
         _stakedERC721.transferFrom(
@@ -358,7 +374,7 @@ contract OKLGFaaSToken is ERC20 {
     }
 
     return
-      balanceOf(_userAddy).mul(_accERC20PerShare).div(1e36).sub(
+      _staker.amountStaked.mul(_accERC20PerShare).div(1e36).sub(
         _staker.rewardDebt
       );
   }
@@ -398,7 +414,7 @@ contract OKLGFaaSToken is ERC20 {
       );
       pool.curRewardsSupply = pool.curRewardsSupply.sub(_num2Trans);
     }
-    _staker.rewardDebt = balanceOf(_userAddy).mul(pool.accERC20PerShare).div(
+    _staker.rewardDebt = _staker.amountStaked.mul(pool.accERC20PerShare).div(
       1e36
     );
     _staker.blockLastHarvested = block.number;
