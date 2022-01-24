@@ -122,9 +122,6 @@ contract MTGYTokenLocker is OKLGProduct {
       'Must be locker owner or a withdrawable wallet.'
     );
 
-    // TODO
-    // bool _isPastTimelock =
-
     if (_locker.isNft) {
       require(
         block.timestamp > _locker.end,
