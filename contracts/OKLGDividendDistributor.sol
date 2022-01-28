@@ -17,7 +17,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
   }
 
   address public shareholderToken;
-  uint256 totalSharesDeposited; // will only be actual deposited tokens without handling any reflections or otherwise
+  uint256 public totalSharesDeposited; // will only be actual deposited tokens without handling any reflections or otherwise
   address wrappedNative;
   IUniswapV2Router02 router;
 
@@ -44,6 +44,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
   mapping(address => uint256) public dividendsPerShare;
 
   uint256 public constant ACC_FACTOR = 10**36;
+  address public constant DEAD = 0x000000000000000000000000000000000000dEaD;
 
   constructor(
     address _dexRouter,
@@ -65,7 +66,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     uint256 amount,
     bool contractOverride
   ) private {
-    if (shares[shareholder] > 0) {
+    if (shares[shareholder] > 0 && !contractOverride) {
       distributeDividend(token, shareholder, false);
     }
 
@@ -104,13 +105,17 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
 
     IERC20 shareContract = IERC20(shareholderToken);
 
-    // need to handle reflections tokens
+    // handle reflections tokens
     uint256 baseWithdrawAmount = amount == 0 ? shares[msg.sender] : amount;
     uint256 totalSharesBalance = shareContract.balanceOf(address(this)).sub(
       totalDividends[shareholderToken].sub(totalDistributed[shareholderToken])
     );
-    uint256 appreciationRatio = totalSharesBalance.div(totalSharesDeposited);
-    uint256 finalWithdrawAmount = baseWithdrawAmount.mul(appreciationRatio);
+    uint256 appreciationRatio18 = totalSharesBalance.mul(10**18).div(
+      totalSharesDeposited
+    );
+    uint256 finalWithdrawAmount = baseWithdrawAmount
+      .mul(appreciationRatio18)
+      .div(10**18);
 
     shareContract.transfer(msg.sender, finalWithdrawAmount);
     totalSharesDeposited = totalSharesDeposited.sub(baseWithdrawAmount);
@@ -135,6 +140,10 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     require(
       erc20DirectAmount > 0 || msg.value > 0,
       'value must be greater than 0'
+    );
+    require(
+      totalSharesDeposited > 0,
+      'must be shares deposited to be rewarded dividends'
     );
 
     if (!tokenAwareness[tokenAddress]) {
@@ -201,7 +210,9 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
           uint256 amountReceived = shareToken.balanceOf(address(this)).sub(
             balBefore
           );
-          _stake(shareholder, token, amountReceived, true);
+          if (amountReceived > 0) {
+            _stake(shareholder, token, amountReceived, true);
+          }
         } else {
           payable(shareholder).call{ value: amount }('');
         }
@@ -275,26 +286,30 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     view
     returns (uint256)
   {
+    // use the token circulating supply for boosting rewards since that's
+    // how the calculation has been done thus far and we want the boosted
+    // rewards to have some longevity.
+    IERC20 shareToken = IERC20(shareholderToken);
+    uint256 totalCirculatingShareTokens = shareToken.totalSupply() -
+      shareToken.balanceOf(DEAD);
     uint256 availableBoostRewards = address(this).balance;
     if (token != address(0)) {
       availableBoostRewards = IERC20(token).balanceOf(address(this));
     }
-    uint256 excludedRewards = totalDividends[token].sub(
-      totalDistributed[token]
-    );
-    IERC20 shareToken = IERC20(shareholderToken);
-    availableBoostRewards = (availableBoostRewards.sub(excludedRewards))
-      .mul(shareToken.balanceOf(shareholder))
-      .div(totalSharesDeposited);
+    uint256 excluded = totalDividends[token].sub(totalDistributed[token]);
+    uint256 finalAvailableBoostRewards = availableBoostRewards.sub(excluded);
+    uint256 userShareBoostRewards = finalAvailableBoostRewards
+      .mul(shares[shareholder])
+      .div(totalCirculatingShareTokens);
 
     uint256 rewardsWithBooster = eligibleForRewardBooster(shareholder)
-      ? availableBoostRewards.add(
-        availableBoostRewards.mul(getBoostMultiplier(shareholder)).div(10**2)
+      ? userShareBoostRewards.add(
+        userShareBoostRewards.mul(getBoostMultiplier(shareholder)).div(10**2)
       )
-      : availableBoostRewards;
+      : userShareBoostRewards;
     return
-      rewardsWithBooster > availableBoostRewards
-        ? availableBoostRewards
+      rewardsWithBooster > finalAvailableBoostRewards
+        ? finalAvailableBoostRewards
         : rewardsWithBooster;
   }
 

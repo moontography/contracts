@@ -6,6 +6,7 @@ import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '../interfaces/IConditional.sol';
 import '../interfaces/IMultiplier.sol';
+import '../interfaces/IOKLGDividendDistributor.sol';
 import '../OKLGWithdrawable.sol';
 
 interface IERC20Decimals is IERC20 {
@@ -27,11 +28,17 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
 
   IERC20Decimals oklg;
   IERC721 oklApe;
+  IOKLGDividendDistributor distributor;
   Booster[] multipliers;
 
-  constructor(address _oklg, address _oklApe) {
+  constructor(
+    address _oklg,
+    address _oklApe,
+    address _dist
+  ) {
     oklg = IERC20Decimals(_oklg);
     oklApe = IERC721(_oklApe);
+    distributor = IOKLGDividendDistributor(_dist);
 
     // seed initial rewards boosters
     multipliers.push(
@@ -72,7 +79,10 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
     returns (uint256)
   {
     if (wallet == address(0)) return 0;
-    uint256 _userOKLGBalance = oklg.balanceOf(wallet);
+
+    // 2022-01-28 LW: Bind balance to what is staked instead of what's in user's wallet
+    // uint256 _userOKLGBalance = oklg.balanceOf(wallet);
+    uint256 _userOKLGBalance = distributor.shares(wallet);
     if (_userOKLGBalance == 0) return 0;
 
     uint256 _userNFTBalance = oklApe.balanceOf(wallet);
@@ -104,6 +114,10 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
 
   function setOklApe(address _oklApe) external onlyOwner {
     oklApe = IERC721(_oklApe);
+  }
+
+  function setDistributor(address _dist) external onlyOwner {
+    distributor = IOKLGDividendDistributor(_dist);
   }
 
   function setAllMultipliers(Booster[] memory _boosters) external onlyOwner {
