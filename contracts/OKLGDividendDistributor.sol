@@ -125,7 +125,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
   function unstake(address token, uint256 boostedAmount) external {
     require(
       shares[msg.sender].amount > 0 &&
-        (boostedAmount == 0 || shares[msg.sender].amount <= boostedAmount),
+        (boostedAmount == 0 || boostedAmount <= shares[msg.sender].amount),
       'you can only unstake if you have some staked'
     );
     distributeDividend(token, msg.sender, false);
