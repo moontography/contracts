@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import './interfaces/IConditional.sol';
@@ -16,7 +17,14 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     uint256 lastClaim; // used for boosting logic
   }
 
+  struct Share {
+    uint256 amount;
+    uint256[] nftBoostTokenIds;
+  }
+
   address public shareholderToken;
+  address public nftBoosterToken;
+  uint256 public totalSharesBoosted;
   uint256 public totalSharesDeposited; // will only be actual deposited tokens without handling any reflections or otherwise
   address wrappedNative;
   IUniswapV2Router02 router;
@@ -29,7 +37,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
   mapping(address => uint256) shareholderClaims;
 
   // amount of shares a user has
-  mapping(address => uint256) public shares;
+  mapping(address => Share) shares;
   // dividend information per user
   mapping(address => mapping(address => Dividend)) public dividends;
 
@@ -49,24 +57,31 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
   constructor(
     address _dexRouter,
     address _shareholderToken,
+    address _nftBoosterToken,
     address _wrappedNative
   ) {
     router = IUniswapV2Router02(_dexRouter);
     shareholderToken = _shareholderToken;
+    nftBoosterToken = _nftBoosterToken;
     wrappedNative = _wrappedNative;
   }
 
-  function stake(address token, uint256 amount) external {
-    _stake(msg.sender, token, amount, false);
+  function stake(
+    address token,
+    uint256 amount,
+    uint256[] memory nftTokenIds
+  ) external {
+    _stake(msg.sender, token, amount, nftTokenIds, false);
   }
 
   function _stake(
     address shareholder,
     address token,
     uint256 amount,
+    uint256[] memory nftTokenIds,
     bool contractOverride
   ) private {
-    if (shares[shareholder] > 0 && !contractOverride) {
+    if (shares[shareholder].amount > 0 && !contractOverride) {
       distributeDividend(token, shareholder, false);
     }
 
@@ -79,50 +94,72 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     // received by the contract during the compounding process are already here, therefore
     // whatever the amount is passed in is what we care about and leave it at that. If a normal
     // staking though by a user, transfer tokens from the user to the contract.
-    uint256 finalAmount = amount;
+    uint256 finalBaseAmount = amount;
     if (!contractOverride) {
       uint256 shareBalanceBefore = shareContract.balanceOf(address(this));
       shareContract.transferFrom(shareholder, address(this), stakeAmount);
-      finalAmount = shareContract.balanceOf(address(this)).sub(
+      finalBaseAmount = shareContract.balanceOf(address(this)).sub(
         shareBalanceBefore
       );
+
+      IERC721 nftContract = IERC721(nftBoosterToken);
+      for (uint256 i = 0; i < nftTokenIds.length; i++) {
+        nftContract.safeTransferFrom(msg.sender, address(this), nftTokenIds[i]);
+        shares[shareholder].nftBoostTokenIds.push(nftTokenIds[i]);
+      }
     }
 
-    totalSharesDeposited = totalSharesDeposited.add(finalAmount);
-    shares[shareholder] += finalAmount;
+    uint256 finalBoostedAmount = getElevatedSharesWithBooster(
+      shareholder,
+      finalBaseAmount
+    );
+    totalSharesDeposited = totalSharesDeposited.add(finalBaseAmount);
+    totalSharesBoosted = totalSharesBoosted.add(finalBoostedAmount);
+    shares[shareholder].amount += finalBoostedAmount;
     dividends[shareholder][token].totalExcluded = getCumulativeDividends(
       token,
-      shares[shareholder]
+      shares[shareholder].amount
     );
   }
 
-  function unstake(address token, uint256 amount) external {
+  function unstake(address token, uint256 boostedAmount) external {
     require(
-      shares[msg.sender] > 0 && (amount == 0 || shares[msg.sender] <= amount),
+      shares[msg.sender].amount > 0 &&
+        (boostedAmount == 0 || shares[msg.sender].amount <= boostedAmount),
       'you can only unstake if you have some staked'
     );
     distributeDividend(token, msg.sender, false);
 
     IERC20 shareContract = IERC20(shareholderToken);
+    uint256 boostedAmountToUnstake = boostedAmount == 0
+      ? shares[msg.sender].amount
+      : boostedAmount;
+
+    uint256 baseAmount = getBaseSharesFromBoosted(
+      msg.sender,
+      boostedAmountToUnstake
+    );
 
     // handle reflections tokens
-    uint256 baseWithdrawAmount = amount == 0 ? shares[msg.sender] : amount;
-    uint256 totalSharesBalance = shareContract.balanceOf(address(this)).sub(
-      totalDividends[shareholderToken].sub(totalDistributed[shareholderToken])
-    );
-    uint256 appreciationRatio18 = totalSharesBalance.mul(10**18).div(
-      totalSharesDeposited
-    );
-    uint256 finalWithdrawAmount = baseWithdrawAmount
-      .mul(appreciationRatio18)
-      .div(10**18);
+    uint256 finalWithdrawAmount = getAppreciatedShares(baseAmount);
+
+    if (boostedAmount == 0) {
+      uint256[] memory tokenIds = shares[msg.sender].nftBoostTokenIds;
+      IERC721 nftContract = IERC721(nftBoosterToken);
+      for (uint256 i = 0; i < tokenIds.length; i++) {
+        nftContract.safeTransferFrom(address(this), msg.sender, tokenIds[i]);
+      }
+      delete shares[msg.sender].nftBoostTokenIds;
+    }
 
     shareContract.transfer(msg.sender, finalWithdrawAmount);
-    totalSharesDeposited = totalSharesDeposited.sub(baseWithdrawAmount);
-    shares[msg.sender] -= baseWithdrawAmount;
+
+    totalSharesDeposited = totalSharesDeposited.sub(baseAmount);
+    totalSharesBoosted = totalSharesBoosted.sub(boostedAmountToUnstake);
+    shares[msg.sender].amount -= boostedAmountToUnstake;
     dividends[msg.sender][token].totalExcluded = getCumulativeDividends(
       token,
-      shares[msg.sender]
+      shares[msg.sender].amount
     );
   }
 
@@ -142,7 +179,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
       'value must be greater than 0'
     );
     require(
-      totalSharesDeposited > 0,
+      totalSharesBoosted > 0,
       'must be shares deposited to be rewarded dividends'
     );
 
@@ -180,7 +217,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
 
     totalDividends[tokenAddress] = totalDividends[tokenAddress].add(amount);
     dividendsPerShare[tokenAddress] = dividendsPerShare[tokenAddress].add(
-      ACC_FACTOR.mul(amount).div(totalSharesDeposited)
+      ACC_FACTOR.mul(amount).div(totalSharesBoosted)
     );
   }
 
@@ -189,7 +226,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     address shareholder,
     bool compound
   ) internal {
-    if (shares[shareholder] == 0) {
+    if (shares[shareholder].amount == 0) {
       return;
     }
 
@@ -211,7 +248,8 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
             balBefore
           );
           if (amountReceived > 0) {
-            _stake(shareholder, token, amountReceived, true);
+            uint256[] memory _empty = new uint256[](0);
+            _stake(shareholder, token, amountReceived, _empty, true);
           }
         } else {
           payable(shareholder).call{ value: amount }('');
@@ -220,34 +258,15 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
         IERC20(token).transfer(shareholder, amount);
       }
 
-      _payBoostedRewards(token, shareholder);
-
       shareholderClaims[shareholder] = block.timestamp;
       dividends[shareholder][token].totalRealised = dividends[shareholder][
         token
       ].totalRealised.add(amount);
       dividends[shareholder][token].totalExcluded = getCumulativeDividends(
         token,
-        shares[shareholder]
+        shares[shareholder].amount
       );
       dividends[shareholder][token].lastClaim = block.timestamp;
-    }
-  }
-
-  function _payBoostedRewards(address token, address shareholder) internal {
-    bool canCurrentlyClaim = canClaimBoostedRewards(token, shareholder) &&
-      eligibleForRewardBooster(shareholder);
-    if (!canCurrentlyClaim) {
-      return;
-    }
-
-    uint256 amount = calculateBoostRewards(token, shareholder);
-    if (amount > 0) {
-      if (token == address(0)) {
-        payable(shareholder).call{ value: amount }('');
-      } else {
-        IERC20(token).transfer(shareholder, amount);
-      }
     }
   }
 
@@ -255,25 +274,57 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     distributeDividend(token, msg.sender, compound);
   }
 
-  function canClaimBoostedRewards(address token, address shareholder)
-    public
-    view
-    returns (bool)
-  {
-    return
-      dividends[shareholder][token].lastClaim == 0 ||
-      (block.timestamp >
-        dividends[shareholder][token].lastClaim.add(
-          floorBoostClaimTimeSeconds
-        ) &&
-        block.timestamp <=
-        dividends[shareholder][token].lastClaim.add(ceilBoostClaimTimeSeconds));
+  function getAppreciatedShares(uint256 amount) public view returns (uint256) {
+    IERC20 shareContract = IERC20(shareholderToken);
+    uint256 totalSharesBalance = shareContract.balanceOf(address(this)).sub(
+      totalDividends[shareholderToken].sub(totalDistributed[shareholderToken])
+    );
+    uint256 appreciationRatio18 = totalSharesBalance.mul(10**18).div(
+      totalSharesDeposited
+    );
+    return amount.mul(appreciationRatio18).div(10**18);
   }
 
   function getDividendTokens() external view returns (address[] memory) {
     return tokens;
   }
 
+  // getElevatedSharesWithBooster:
+  // A + Ax = B
+  // ------------------------
+  // getBaseSharesFromBoosted:
+  // A + Ax = B
+  // A(1 + x) = B
+  // A = B/(1 + x)
+  function getElevatedSharesWithBooster(address shareholder, uint256 baseAmount)
+    public
+    view
+    returns (uint256)
+  {
+    return
+      eligibleForRewardBooster(shareholder)
+        ? baseAmount.add(
+          baseAmount.mul(getBoostMultiplier(shareholder)).div(10**2)
+        )
+        : baseAmount;
+  }
+
+  function getBaseSharesFromBoosted(address shareholder, uint256 boostedAmount)
+    public
+    view
+    returns (uint256)
+  {
+    uint256 multiplier = 10**18;
+    return
+      eligibleForRewardBooster(shareholder)
+        ? boostedAmount.mul(multiplier).div(
+          multiplier +
+            multiplier.mul(getBoostMultiplier(shareholder)).div(10**2)
+        )
+        : boostedAmount;
+  }
+
+  // NOTE: 2022-01-31 LW: new boost contract assumes OKLG and booster NFTs are staked in this contract
   function getBoostMultiplier(address wallet) public view returns (uint256) {
     return
       boostMultiplierContract == address(0)
@@ -281,38 +332,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
         : IMultiplier(boostMultiplierContract).getMultiplier(wallet);
   }
 
-  function calculateBoostRewards(address token, address shareholder)
-    public
-    view
-    returns (uint256)
-  {
-    // use the token circulating supply for boosting rewards since that's
-    // how the calculation has been done thus far and we want the boosted
-    // rewards to have some longevity.
-    IERC20 shareToken = IERC20(shareholderToken);
-    uint256 totalCirculatingShareTokens = shareToken.totalSupply() -
-      shareToken.balanceOf(DEAD);
-    uint256 availableBoostRewards = address(this).balance;
-    if (token != address(0)) {
-      availableBoostRewards = IERC20(token).balanceOf(address(this));
-    }
-    uint256 excluded = totalDividends[token].sub(totalDistributed[token]);
-    uint256 finalAvailableBoostRewards = availableBoostRewards.sub(excluded);
-    uint256 userShareBoostRewards = finalAvailableBoostRewards
-      .mul(shares[shareholder])
-      .div(totalCirculatingShareTokens);
-
-    uint256 rewardsWithBooster = eligibleForRewardBooster(shareholder)
-      ? userShareBoostRewards.add(
-        userShareBoostRewards.mul(getBoostMultiplier(shareholder)).div(10**2)
-      )
-      : userShareBoostRewards;
-    return
-      rewardsWithBooster > finalAvailableBoostRewards
-        ? finalAvailableBoostRewards
-        : rewardsWithBooster;
-  }
-
+  // NOTE: 2022-01-31 LW: new boost contract assumes OKLG and booster NFTs are staked in this contract
   function eligibleForRewardBooster(address shareholder)
     public
     view
@@ -329,13 +349,13 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     view
     returns (uint256)
   {
-    if (shares[shareholder] == 0) {
+    if (shares[shareholder].amount == 0) {
       return 0;
     }
 
     uint256 earnedDividends = getCumulativeDividends(
       token,
-      shares[shareholder]
+      shares[shareholder].amount
     );
     uint256 dividendsExcluded = dividends[shareholder][token].totalExcluded;
     if (earnedDividends <= dividendsExcluded) {
@@ -351,6 +371,14 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     returns (uint256)
   {
     return share.mul(dividendsPerShare[token]).div(ACC_FACTOR);
+  }
+
+  function getShares(address user) external view returns (uint256) {
+    return shares[user].amount;
+  }
+
+  function getBoostNfts(address user) external view returns (uint256[] memory) {
+    return shares[user].nftBoostTokenIds;
   }
 
   function setShareholderToken(address _token) external onlyOwner {

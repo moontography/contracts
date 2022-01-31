@@ -36,9 +36,9 @@ contract DexUtils {
     stableToken = _stableToken;
   }
 
-  // returns main stable pair price adjusted to 18 decimals
+  // returns token pair price against stable (i.e. USDT) adjusted to 18 decimals
   // NOTE: assumes the primary DEX pair for main token is wrapped native
-  function getMainPriceViaNativePair(address token)
+  function getTokenPriceViaNativePair(address token)
     external
     view
     returns (uint256)

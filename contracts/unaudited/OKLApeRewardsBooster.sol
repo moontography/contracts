@@ -2,7 +2,6 @@
 pragma solidity ^0.8.4;
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '../interfaces/IConditional.sol';
 import '../interfaces/IMultiplier.sol';
@@ -27,17 +26,11 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
   }
 
   IERC20Decimals oklg;
-  IERC721 oklApe;
   IOKLGDividendDistributor distributor;
   Booster[] multipliers;
 
-  constructor(
-    address _oklg,
-    address _oklApe,
-    address _dist
-  ) {
+  constructor(address _oklg, address _dist) {
     oklg = IERC20Decimals(_oklg);
-    oklApe = IERC721(_oklApe);
     distributor = IOKLGDividendDistributor(_dist);
 
     // seed initial rewards boosters
@@ -68,7 +61,8 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
 
   // required by rewards booster logic in rewards contract to determine if eligible for booster at all
   function passesTest(address wallet) external view override returns (bool) {
-    return wallet == address(0) ? false : oklApe.balanceOf(wallet) >= 1;
+    uint256[] memory _userNFTTokenIds = distributor.getBoostNfts(wallet);
+    return wallet == address(0) ? false : _userNFTTokenIds.length >= 1;
   }
 
   // returns number indicating percentage boost (0 == 0%, 1 == 1%, etc.)
@@ -80,12 +74,11 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
   {
     if (wallet == address(0)) return 0;
 
-    // 2022-01-28 LW: Bind balance to what is staked instead of what's in user's wallet
-    // uint256 _userOKLGBalance = oklg.balanceOf(wallet);
-    uint256 _userOKLGBalance = distributor.shares(wallet);
+    uint256 _userOKLGBalance = distributor.getShares(wallet);
     if (_userOKLGBalance == 0) return 0;
 
-    uint256 _userNFTBalance = oklApe.balanceOf(wallet);
+    uint256[] memory _userNFTTokenIds = distributor.getBoostNfts(wallet);
+    uint256 _userNFTBalance = _userNFTTokenIds.length;
     if (_userNFTBalance == 0) return 0;
 
     for (uint256 _i = 0; _i < multipliers.length; _i++) {
@@ -104,16 +97,8 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
     return address(oklg);
   }
 
-  function getOklApeAddress() external view returns (address) {
-    return address(oklApe);
-  }
-
   function setOklg(address _oklgAddy) external onlyOwner {
     oklg = IERC20Decimals(_oklgAddy);
-  }
-
-  function setOklApe(address _oklApe) external onlyOwner {
-    oklApe = IERC721(_oklApe);
   }
 
   function setDistributor(address _dist) external onlyOwner {
