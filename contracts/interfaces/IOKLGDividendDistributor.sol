@@ -6,5 +6,10 @@ interface IOKLGDividendDistributor {
     external
     payable;
 
-  function shares(address wallet) external view returns (uint256);
+  function getShares(address wallet) external view returns (uint256);
+
+  function getBoostNfts(address wallet)
+    external
+    view
+    returns (uint256[] memory);
 }
