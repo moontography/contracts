@@ -19,6 +19,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
 
   struct Share {
     uint256 amount;
+    uint256 amountBase;
     uint256[] nftBoostTokenIds;
   }
 
@@ -43,8 +44,6 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
 
   address public boostContract;
   address public boostMultiplierContract;
-  uint256 public floorBoostClaimTimeSeconds = 60 * 60 * 12;
-  uint256 public ceilBoostClaimTimeSeconds = 60 * 60 * 24;
 
   // per token dividends
   mapping(address => uint256) public totalDividends;
@@ -94,7 +93,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     // received by the contract during the compounding process are already here, therefore
     // whatever the amount is passed in is what we care about and leave it at that. If a normal
     // staking though by a user, transfer tokens from the user to the contract.
-    uint256 finalBaseAmount = amount;
+    uint256 finalBaseAmount = stakeAmount;
     if (!contractOverride) {
       uint256 shareBalanceBefore = shareContract.balanceOf(address(this));
       shareContract.transferFrom(shareholder, address(this), stakeAmount);
@@ -104,18 +103,32 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
 
       IERC721 nftContract = IERC721(nftBoosterToken);
       for (uint256 i = 0; i < nftTokenIds.length; i++) {
-        nftContract.safeTransferFrom(msg.sender, address(this), nftTokenIds[i]);
+        nftContract.transferFrom(shareholder, address(this), nftTokenIds[i]);
         shares[shareholder].nftBoostTokenIds.push(nftTokenIds[i]);
       }
     }
 
-    uint256 finalBoostedAmount = getElevatedSharesWithBooster(
-      shareholder,
+    // NOTE: temporarily setting shares[shareholder].amount to base deposited to get elevated shares.
+    // They depend on shares[shareholder].amount being populated, but we're simply reversing this
+    // after calculating boosted amount
+    uint256 currentAmountWithBoost = shares[msg.sender].amount;
+    shares[shareholder].amount = shares[shareholder].amountBase.add(
       finalBaseAmount
     );
+
+    // this is the final amount AFTER adding the new base amount, not just the additional
+    uint256 finalBoostedAmount = getElevatedSharesWithBooster(
+      shareholder,
+      shares[shareholder].amount
+    );
+    shares[shareholder].amount = currentAmountWithBoost;
+
     totalSharesDeposited = totalSharesDeposited.add(finalBaseAmount);
-    totalSharesBoosted = totalSharesBoosted.add(finalBoostedAmount);
-    shares[shareholder].amount += finalBoostedAmount;
+    totalSharesBoosted = totalSharesBoosted.sub(shares[shareholder].amount).add(
+        finalBoostedAmount
+      );
+    shares[shareholder].amountBase += finalBaseAmount;
+    shares[shareholder].amount = finalBoostedAmount;
     dividends[shareholder][token].totalExcluded = getCumulativeDividends(
       token,
       shares[shareholder].amount
@@ -135,10 +148,16 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
       ? shares[msg.sender].amount
       : boostedAmount;
 
+    // NOTE: temporarily setting shares[shareholder].amount to base deposited to get elevated shares.
+    // They depend on shares[shareholder].amount being populated, but we're simply reversing this
+    // after calculating boosted amount
+    uint256 currentAmountWithBoost = shares[msg.sender].amount;
+    shares[msg.sender].amount = shares[msg.sender].amountBase;
     uint256 baseAmount = getBaseSharesFromBoosted(
       msg.sender,
       boostedAmountToUnstake
     );
+    shares[msg.sender].amount = currentAmountWithBoost;
 
     // handle reflections tokens
     uint256 finalWithdrawAmount = getAppreciatedShares(baseAmount);
@@ -156,6 +175,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
 
     totalSharesDeposited = totalSharesDeposited.sub(baseAmount);
     totalSharesBoosted = totalSharesBoosted.sub(boostedAmountToUnstake);
+    shares[msg.sender].amountBase -= baseAmount;
     shares[msg.sender].amount -= boostedAmountToUnstake;
     dividends[msg.sender][token].totalExcluded = getCumulativeDividends(
       token,
@@ -297,7 +317,7 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
   // A(1 + x) = B
   // A = B/(1 + x)
   function getElevatedSharesWithBooster(address shareholder, uint256 baseAmount)
-    public
+    internal
     view
     returns (uint256)
   {
@@ -318,8 +338,9 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     return
       eligibleForRewardBooster(shareholder)
         ? boostedAmount.mul(multiplier).div(
-          multiplier +
+          multiplier.add(
             multiplier.mul(getBoostMultiplier(shareholder)).div(10**2)
+          )
         )
         : boostedAmount;
   }
@@ -373,6 +394,10 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
     return share.mul(dividendsPerShare[token]).div(ACC_FACTOR);
   }
 
+  function getBaseShares(address user) external view returns (uint256) {
+    return shares[user].amountBase;
+  }
+
   function getShares(address user) external view returns (uint256) {
     return shares[user].amount;
   }
@@ -383,14 +408,6 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
 
   function setShareholderToken(address _token) external onlyOwner {
     shareholderToken = _token;
-  }
-
-  function setBoostClaimTimeInfo(uint256 floor, uint256 ceil)
-    external
-    onlyOwner
-  {
-    floorBoostClaimTimeSeconds = floor;
-    ceilBoostClaimTimeSeconds = ceil;
   }
 
   function setBoostContract(address _contract) external onlyOwner {
@@ -416,6 +433,16 @@ contract OKLGDividendDistributor is OKLGWithdrawable {
       );
     }
     boostMultiplierContract = _contract;
+  }
+
+  function withdrawNfts(address nftContractAddy, uint256[] memory _tokenIds)
+    external
+    onlyOwner
+  {
+    IERC721 nftContract = IERC721(nftContractAddy);
+    for (uint256 i = 0; i < _tokenIds.length; i++) {
+      nftContract.transferFrom(address(this), owner(), _tokenIds[i]);
+    }
   }
 
   receive() external payable {}
