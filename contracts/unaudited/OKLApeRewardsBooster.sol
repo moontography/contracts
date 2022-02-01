@@ -53,7 +53,9 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
     multipliers.push(
       Booster({
         baseBoost: 15,
-        maxOKLGBalance: uint256(420_690_000_000).mul(10**oklg.decimals()),
+        maxOKLGBalance: uint256(999_999_999_999_999_999).mul(
+          10**oklg.decimals()
+        ),
         maxNFTBalance: 10
       })
     );
