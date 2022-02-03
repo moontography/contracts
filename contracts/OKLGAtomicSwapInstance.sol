@@ -187,8 +187,9 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     );
     require(
       _id == sha256(abi.encodePacked(msg.sender, _origTimestamp, _amount)),
-      "we don't recognize this swap"
+      'we do not recognize this swap'
     );
+    require(!swaps[_id].isSendGasFunded, 'cannot fund swap again');
     if (minimumGasForOperation > 0) {
       oracleAddress.call{ value: minimumGasForOperation }('');
     }
@@ -197,8 +198,8 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       origTimestamp: _origTimestamp,
       currentTimestamp: block.timestamp,
       isOutbound: true,
-      isComplete: swaps[_id].isComplete == true ? true : false,
-      isRefunded: swaps[_id].isRefunded == true ? true : false,
+      isComplete: false,
+      isRefunded: false,
       isSendGasFunded: true,
       swapAddress: msg.sender,
       amount: _amount
