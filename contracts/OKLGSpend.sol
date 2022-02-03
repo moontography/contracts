@@ -132,7 +132,15 @@ contract OKLGSpend is IOKLGSpend, OKLGWithdrawable {
       ? payable(owner())
       : paymentWallet;
     _paymentWallet.call{ value: _productCostWei }('');
+    _refundExcessPayment(_productCostWei);
     totalSpentWei += _productCostWei;
     emit Spend(msg.sender, _payor, _productCostWei);
+  }
+
+  function _refundExcessPayment(uint256 _productCost) internal {
+    uint256 excess = msg.value - _productCost;
+    if (excess > 0) {
+      payable(msg.sender).call{ value: excess }('');
+    }
   }
 }
