@@ -198,8 +198,8 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       origTimestamp: _origTimestamp,
       currentTimestamp: block.timestamp,
       isOutbound: true,
-      isComplete: false,
-      isRefunded: false,
+      isComplete: swaps[_id].isComplete == true ? true : false,
+      isRefunded: swaps[_id].isRefunded == true ? true : false,
       isSendGasFunded: true,
       swapAddress: msg.sender,
       amount: _amount
