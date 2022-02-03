@@ -29,6 +29,7 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     bool isOutbound;
     bool isComplete;
     bool isRefunded;
+    bool isRefundable;
     bool isSendGasFunded;
     address swapAddress;
     uint256 amount;
@@ -155,6 +156,7 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       isOutbound: false,
       isComplete: false,
       isRefunded: false,
+      isRefundable: true,
       isSendGasFunded: false,
       swapAddress: msg.sender,
       amount: _amount
@@ -200,6 +202,7 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
       isOutbound: true,
       isComplete: swaps[_id].isComplete == true ? true : false,
       isRefunded: swaps[_id].isRefunded == true ? true : false,
+      isRefundable: swaps[_id].isRefundable,
       isSendGasFunded: true,
       swapAddress: msg.sender,
       amount: _amount
@@ -212,6 +215,10 @@ contract OKLGAtomicSwapInstance is OKLGProduct {
     require(isActive, 'this atomic swap instance is not active');
 
     Swap storage swap = swaps[_id];
+    require(
+      swap.isRefundable,
+      'swap must have been initiated from this chain in order to refund'
+    );
 
     _confirmSwapExistsGasFundedAndSenderValid(swap);
     swap.isRefunded = true;
