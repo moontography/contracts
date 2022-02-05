@@ -64,7 +64,7 @@ contract OKLGFaaS is OKLGProduct {
       : _rewToken.balanceOf(address(this));
 
     OKLGFaaSToken _contract = new OKLGFaaSToken(
-      'Moontography Staking Token',
+      'OKLG Staking Token',
       'sOKLG',
       _updatedSupply,
       _rewardsTokenAddy,
