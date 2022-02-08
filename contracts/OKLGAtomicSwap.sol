@@ -71,7 +71,7 @@ contract OKLGAtomicSwap is OKLGProduct {
       uint256 _numLoops = _max > 0 ? _max : 50;
       while (_index + _start < _start + _numLoops) {
         OKLGAtomicSwapInstance _contract = OKLGAtomicSwapInstance(
-          targetSwapContracts[_index].sourceContract
+          targetSwapContracts[_start].sourceContract
         );
         _contract.setOracleAddress(oracleAddress);
         _index++;
