@@ -122,6 +122,8 @@ contract MTGYTokenLocker is OKLGProduct {
       'Must be locker owner or a withdrawable wallet.'
     );
 
+    _locker.amountWithdrawn += _locker.isNft ? 1 : _amountOrTokenId;
+
     if (_locker.isNft) {
       require(
         block.timestamp > _locker.end,
@@ -138,7 +140,6 @@ contract MTGYTokenLocker is OKLGProduct {
       IERC20 _token = IERC20(_locker.token);
       _token.transferFrom(address(this), msg.sender, _amountOrTokenId);
     }
-    _locker.amountWithdrawn = _locker.isNft ? 1 : _amountOrTokenId;
     emit WithdrawTokens(_idx, msg.sender, _amountOrTokenId);
   }
 

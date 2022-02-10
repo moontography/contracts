@@ -25,6 +25,7 @@ contract OKLGAirdropper is OKLGProduct {
     payable
     returns (bool)
   {
+    uint256 balanceBefore = address(this).balance;
     _payForService(0);
 
     uint256 _amountSent = 0;
@@ -41,6 +42,10 @@ contract OKLGAirdropper is OKLGProduct {
     require(
       msg.value >= _amountSent,
       'ETH provided by user should accommodate amount being airdropped'
+    );
+    require(
+      address(this).balance >= balanceBefore,
+      'no native token in contract should be used'
     );
     return _wasSent;
   }
