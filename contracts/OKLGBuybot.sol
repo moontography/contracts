@@ -2,18 +2,13 @@
 pragma solidity ^0.8.4;
 
 import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
-import './OKLGWithdrawable.sol';
+import './OKLGAffiliate.sol';
 
 /**
  * @title OKLGBuybot
  * @dev Logic for spending OKLG on products in the product ecosystem.
  */
-contract OKLGBuybot is OKLGWithdrawable {
-  address payable private constant DEAD_WALLET =
-    payable(0x000000000000000000000000000000000000dEaD);
-  address payable public paymentWallet =
-    payable(0x000000000000000000000000000000000000dEaD);
-
+contract OKLGBuybot is OKLGAffiliate {
   AggregatorV3Interface internal priceFeed;
 
   uint256 public totalSpentWei = 0;
@@ -73,10 +68,6 @@ contract OKLGBuybot is OKLGWithdrawable {
     priceFeed = AggregatorV3Interface(_feedContract);
   }
 
-  function setPaymentWallet(address _newPaymentWallet) external onlyOwner {
-    paymentWallet = payable(_newPaymentWallet);
-  }
-
   function setOverridePricePerDayUSD(address _wallet, uint256 _priceUSD)
     external
     onlyOwner
@@ -114,7 +105,8 @@ contract OKLGBuybot is OKLGWithdrawable {
     string memory _client,
     string memory _channel,
     bool _isPaid,
-    uint256 _minThresholdUsd
+    uint256 _minThresholdUsd,
+    address _referrer
   ) external payable {
     require(msg.value >= 0, 'must send some ETH to pay for bot');
 
@@ -123,11 +115,8 @@ contract OKLGBuybot is OKLGWithdrawable {
       : paidPricePerDayUsd;
 
     if (_isPaid && !removeCost[msg.sender]) {
-      address payable _paymentWallet = paymentWallet == DEAD_WALLET ||
-        paymentWallet == address(0)
-        ? payable(owner())
-        : paymentWallet;
-      _paymentWallet.call{ value: msg.value }('');
+      pay(msg.sender, _referrer, msg.value);
+
       totalSpentWei += msg.value;
       _costPerDayUSD = 0;
     }
