@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-interface IOKLGDividendDistributor {
-  function depositDividends(address tokenAddress, uint256 erc20DirectAmount)
+interface IOKLGRewardDistributor {
+  function depositRewards(address tokenAddress, uint256 erc20DirectAmount)
     external
     payable;
 

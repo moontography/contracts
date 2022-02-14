@@ -12,7 +12,7 @@ contract OKLGBuybot is OKLGAffiliate {
   AggregatorV3Interface internal priceFeed;
 
   uint256 public totalSpentWei = 0;
-  uint256 public paidPricePerDayUsd = 25;
+  uint256 public paidPricePerDayUsd = 15;
   mapping(address => uint256) public overridePricePerDayUSD;
   mapping(address => bool) public removeCost;
   event SetupBot(
@@ -52,6 +52,10 @@ contract OKLGBuybot is OKLGAffiliate {
     // https://docs.chain.link/docs/reference-contracts/
     // https://github.com/pcaversaccio/chainlink-price-feed/blob/main/README.md
     priceFeed = AggregatorV3Interface(_linkPriceFeedContract);
+  }
+
+  function getAllBuybotIds() external view returns (bytes32[] memory) {
+    return buybotConfigsList;
   }
 
   /**
@@ -186,5 +190,9 @@ contract OKLGBuybot is OKLGAffiliate {
       }
     }
     emit DeleteBot(msg.sender, _token, _client, _channel);
+  }
+
+  function setPricePerDayUsd(uint256 _price) external onlyOwner {
+    paidPricePerDayUsd = _price;
   }
 }

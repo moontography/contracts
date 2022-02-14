@@ -5,7 +5,7 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '../interfaces/IConditional.sol';
 import '../interfaces/IMultiplier.sol';
-import '../interfaces/IOKLGDividendDistributor.sol';
+import '../interfaces/IOKLGRewardDistributor.sol';
 import '../OKLGWithdrawable.sol';
 
 interface IERC20Decimals is IERC20 {
@@ -26,12 +26,12 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
   }
 
   IERC20Decimals oklg;
-  IOKLGDividendDistributor distributor;
+  IOKLGRewardDistributor distributor;
   Booster[] multipliers;
 
   constructor(address _oklg, address _dist) {
     oklg = IERC20Decimals(_oklg);
-    distributor = IOKLGDividendDistributor(_dist);
+    distributor = IOKLGRewardDistributor(_dist);
 
     // seed initial rewards boosters
     multipliers.push(
@@ -104,7 +104,7 @@ contract OKLApeRewardsBooster is IConditional, IMultiplier, OKLGWithdrawable {
   }
 
   function setDistributor(address _dist) external onlyOwner {
-    distributor = IOKLGDividendDistributor(_dist);
+    distributor = IOKLGRewardDistributor(_dist);
   }
 
   function setAllMultipliers(Booster[] memory _boosters) external onlyOwner {
