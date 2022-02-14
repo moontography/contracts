@@ -112,7 +112,7 @@ contract OKLGBuybot is OKLGAffiliate {
     uint256 _minThresholdUsd,
     address _referrer
   ) external payable {
-    require(msg.value >= 0, 'must send some ETH to pay for bot');
+    require(!_isPaid || msg.value > 0, 'must send some ETH to pay for bot');
 
     uint256 _costPerDayUSD = overridePricePerDayUSD[msg.sender] > 0
       ? overridePricePerDayUSD[msg.sender]
@@ -120,18 +120,15 @@ contract OKLGBuybot is OKLGAffiliate {
 
     if (_isPaid && !removeCost[msg.sender]) {
       pay(msg.sender, _referrer, msg.value);
-
       totalSpentWei += msg.value;
+    } else {
       _costPerDayUSD = 0;
     }
 
-    uint256 _daysOfService18 = 30;
+    uint256 _daysOfService18 = 30 * 10**18;
     if (_costPerDayUSD > 0) {
-      uint256 _costPerDayUSD18 = _costPerDayUSD * 10**18;
       uint256 _ethPriceUSD18 = getLatestETHPrice();
-      _daysOfService18 =
-        ((msg.value * 10**18) * _ethPriceUSD18) /
-        _costPerDayUSD18;
+      _daysOfService18 = (msg.value * _ethPriceUSD18) / 10**18 / _costPerDayUSD;
     }
 
     uint256 _secondsOfService = (_daysOfService18 * 24 * 60 * 60) / 10**18;
