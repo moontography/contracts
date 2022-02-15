@@ -25,7 +25,7 @@ contract OKLGAirdropper is OKLGProduct {
     payable
     returns (bool)
   {
-    uint256 balanceBefore = address(this).balance;
+    uint256 balanceBefore = address(this).balance - msg.value;
     _payForService(0);
 
     uint256 _amountSent = 0;
