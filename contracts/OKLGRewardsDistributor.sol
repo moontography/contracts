@@ -293,6 +293,7 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
       totalDistributed[token] = totalDistributed[token].add(amount);
       // native transfer
       if (token == address(0)) {
+        uint256 balanceBefore = address(this).balance;
         if (compound) {
           IERC20 shareToken = IERC20(shareholderToken);
           uint256 balBefore = shareToken.balanceOf(address(this));
@@ -313,6 +314,10 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
           (bool sent, ) = payable(shareholder).call{ value: amount }('');
           require(sent, 'ETH was not successfully sent');
         }
+        require(
+          address(this).balance >= balanceBefore - amount,
+          'only take proper amount from contract'
+        );
       } else {
         IERC20(token).transfer(shareholder, amount);
       }
