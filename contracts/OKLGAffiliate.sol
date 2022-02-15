@@ -18,7 +18,7 @@ contract OKLGAffiliate is OKLGWithdrawable {
 
   struct Affiliate {
     uint256 feePercent;
-    uint256 revenueWei;
+    uint256 revenue;
   }
 
   uint16 public defaultAffiliateDiscount = 1000; // 10%
@@ -54,7 +54,7 @@ contract OKLGAffiliate is OKLGWithdrawable {
         PERCENT_DENOMENATOR;
       (bool sent, ) = payable(_referrer).call{ value: referrerFee }('');
       require(sent, 'affiliate payment did not go through');
-      affiliates[_referrer].revenueWei = price;
+      affiliates[_referrer].revenue += price;
       price -= referrerFee;
     }
 
