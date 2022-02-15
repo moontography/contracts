@@ -112,7 +112,10 @@ contract OKLGBuybot is OKLGAffiliate {
     uint256 _minThresholdUsd,
     address _referrer
   ) external payable {
-    require(!_isPaid || msg.value > 0, 'must send some ETH to pay for bot');
+    require(
+      !_isPaid || removeCost[msg.sender] || msg.value > 0,
+      'must send some ETH to pay for bot'
+    );
 
     uint256 _costPerDayUSD = overridePricePerDayUSD[msg.sender] > 0
       ? overridePricePerDayUSD[msg.sender]
