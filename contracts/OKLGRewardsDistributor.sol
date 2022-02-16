@@ -478,15 +478,16 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
     minSecondsBeforeUnstake = _seconds;
   }
 
-  function stakeOverride(address[] memory users, Share[] memory shareholderInfo)
-    external
-    onlyOwner
-  {
+  function stakeOverride(
+    address token,
+    address[] memory users,
+    Share[] memory shareholderInfo
+  ) external onlyOwner {
     require(users.length == shareholderInfo.length, 'must be same length');
     uint256[] memory _empty = new uint256[](0);
     for (uint256 i = 0; i < users.length; i++) {
       shares[users[i]].nftBoostTokenIds = shareholderInfo[i].nftBoostTokenIds;
-      _stake(users[i], address(0), shareholderInfo[i].amountBase, _empty, true);
+      _stake(users[i], token, shareholderInfo[i].amountBase, _empty, true);
     }
   }
 
