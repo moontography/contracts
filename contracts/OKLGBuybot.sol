@@ -128,7 +128,7 @@ contract OKLGBuybot is OKLGAffiliate {
       _costPerDayUSD = 0;
     }
 
-    uint256 _daysOfService18 = 30 * 10**18;
+    uint256 _daysOfService18 = 180 * 10**18;
     if (_costPerDayUSD > 0) {
       uint256 _ethPriceUSD18 = getLatestETHPrice();
       _daysOfService18 = (msg.value * _ethPriceUSD18) / 10**18 / _costPerDayUSD;
