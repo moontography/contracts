@@ -13,7 +13,7 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
   using SafeMath for uint256;
 
   struct Reward {
-    uint256 totalExcluded; // excluded dividend
+    uint256 totalExcluded; // excluded reward
     uint256 totalRealised;
     uint256 lastClaim; // used for boosting logic
   }
@@ -36,7 +36,7 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
 
   // amount of shares a user has
   mapping(address => Share) shares;
-  // dividend information per user
+  // reward information per user
   mapping(address => Reward) public rewards;
 
   address public boostContract;
