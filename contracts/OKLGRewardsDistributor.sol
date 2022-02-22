@@ -34,25 +34,17 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
   address wrappedNative;
   IUniswapV2Router02 router;
 
-  // used to fetch in a frontend to get full list
-  // of tokens that rewards can be claimed
-  address[] public tokens;
-  mapping(address => bool) tokenAwareness;
-
-  mapping(address => uint256) shareholderClaims;
-
   // amount of shares a user has
   mapping(address => Share) shares;
   // dividend information per user
-  mapping(address => mapping(address => Reward)) public rewards;
+  mapping(address => Reward) public rewards;
 
   address public boostContract;
   address public boostMultiplierContract;
 
-  // per token rewards
-  mapping(address => uint256) public totalRewards;
-  mapping(address => uint256) public totalDistributed; // to be shown in UI
-  mapping(address => uint256) public rewardsPerShare;
+  uint256 public totalRewards;
+  uint256 public totalDistributed; // to be shown in UI
+  uint256 public rewardsPerShare;
 
   uint256 public constant ACC_FACTOR = 10**36;
   address public constant DEAD = 0x000000000000000000000000000000000000dEaD;
@@ -69,23 +61,18 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
     wrappedNative = _wrappedNative;
   }
 
-  function stake(
-    address token,
-    uint256 amount,
-    uint256[] memory nftTokenIds
-  ) external {
-    _stake(msg.sender, token, amount, nftTokenIds, false);
+  function stake(uint256 amount, uint256[] memory nftTokenIds) external {
+    _stake(msg.sender, amount, nftTokenIds, false);
   }
 
   function _stake(
     address shareholder,
-    address token,
     uint256 amount,
     uint256[] memory nftTokenIds,
     bool overrideTransfers
   ) private {
     if (shares[shareholder].amount > 0 && !overrideTransfers) {
-      distributeReward(token, shareholder, false);
+      distributeReward(shareholder, false);
     }
 
     IERC20 shareContract = IERC20(shareholderToken);
@@ -139,17 +126,12 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
     if (sharesBefore == 0 && shares[shareholder].amount > 0) {
       totalStakedUsers++;
     }
-    rewards[shareholder][token].totalExcluded = getCumulativeRewards(
-      token,
+    rewards[shareholder].totalExcluded = getCumulativeRewards(
       shares[shareholder].amount
     );
   }
 
-  function unstake(
-    address token,
-    uint256 boostedAmount,
-    bool relinquishRewards
-  ) external {
+  function unstake(uint256 boostedAmount, bool relinquishRewards) external {
     require(
       shares[msg.sender].amount > 0 &&
         (boostedAmount == 0 || boostedAmount <= shares[msg.sender].amount),
@@ -160,7 +142,7 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
       'must be staked for minimum time and at least one block if no min'
     );
     if (!relinquishRewards) {
-      distributeReward(token, msg.sender, false);
+      distributeReward(msg.sender, false);
     }
 
     IERC20 shareContract = IERC20(shareholderToken);
@@ -198,149 +180,88 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
     totalSharesBoosted = totalSharesBoosted.sub(boostedAmountToUnstake);
     shares[msg.sender].amountBase -= baseAmount;
     shares[msg.sender].amount -= boostedAmountToUnstake;
-    rewards[msg.sender][token].totalExcluded = getCumulativeRewards(
-      token,
+    rewards[msg.sender].totalExcluded = getCumulativeRewards(
       shares[msg.sender].amount
     );
   }
 
-  // tokenAddress == address(0) means native token
-  // any other token should be ERC20 listed on DEX router provided in constructor
-  //
-  // NOTE: Using this function will add tokens to the core rewards/rewards to be
-  // distributed to all shareholders. However, to implement boosting, the token
-  // should be directly transferred to this contract. Anything above and
-  // beyond the totalRewards[tokenAddress] amount will be used for boosting.
-  function depositRewards(address tokenAddress, uint256 erc20DirectAmount)
-    external
-    payable
-    override
-  {
-    require(
-      erc20DirectAmount > 0 || msg.value > 0,
-      'value must be greater than 0'
-    );
+  function depositRewards() external payable override {
+    require(msg.value > 0, 'value must be greater than 0');
     require(
       totalSharesBoosted > 0,
       'must be shares deposited to be rewarded rewards'
     );
 
-    if (!tokenAwareness[tokenAddress]) {
-      tokenAwareness[tokenAddress] = true;
-      tokens.push(tokenAddress);
-    }
+    uint256 amount = msg.value;
 
-    IERC20 token;
-    uint256 amount;
-    if (tokenAddress == address(0)) {
-      (bool sent, ) = payable(address(this)).call{ value: msg.value }('');
-      require(sent, 'ETH was not successfully sent');
-      amount = msg.value;
-    } else if (erc20DirectAmount > 0) {
-      token = IERC20(tokenAddress);
-      uint256 balanceBefore = token.balanceOf(address(this));
-
-      token.transferFrom(msg.sender, address(this), erc20DirectAmount);
-
-      amount = token.balanceOf(address(this)).sub(balanceBefore);
-    } else {
-      token = IERC20(tokenAddress);
-      uint256 balanceBefore = token.balanceOf(address(this));
-
-      address[] memory path = new address[](2);
-      path[0] = wrappedNative;
-      path[1] = tokenAddress;
-
-      router.swapExactETHForTokensSupportingFeeOnTransferTokens{
-        value: msg.value
-      }(0, path, address(this), block.timestamp);
-
-      amount = token.balanceOf(address(this)).sub(balanceBefore);
-    }
-
-    totalRewards[tokenAddress] = totalRewards[tokenAddress].add(amount);
-    rewardsPerShare[tokenAddress] = rewardsPerShare[tokenAddress].add(
+    totalRewards = totalRewards.add(amount);
+    rewardsPerShare = rewardsPerShare.add(
       ACC_FACTOR.mul(amount).div(totalSharesBoosted)
     );
   }
 
-  function distributeReward(
-    address token,
-    address shareholder,
-    bool compound
-  ) internal {
+  function distributeReward(address shareholder, bool compound) internal {
     require(
-      block.timestamp > rewards[shareholder][token].lastClaim,
+      block.timestamp > rewards[shareholder].lastClaim,
       'can only claim once per block'
     );
     if (shares[shareholder].amount == 0) {
       return;
     }
 
-    uint256 amount = getUnpaid(token, shareholder);
+    uint256 amount = getUnpaid(shareholder);
 
-    shareholderClaims[shareholder] = block.timestamp;
-    rewards[shareholder][token].totalRealised = rewards[shareholder][token]
-      .totalRealised
-      .add(amount);
-    rewards[shareholder][token].totalExcluded = getCumulativeRewards(
-      token,
+    rewards[shareholder].totalRealised = rewards[shareholder].totalRealised.add(
+      amount
+    );
+    rewards[shareholder].totalExcluded = getCumulativeRewards(
       shares[shareholder].amount
     );
-    rewards[shareholder][token].lastClaim = block.timestamp;
+    rewards[shareholder].lastClaim = block.timestamp;
 
     if (amount > 0) {
-      totalDistributed[token] = totalDistributed[token].add(amount);
-      // native transfer
-      if (token == address(0)) {
-        uint256 balanceBefore = address(this).balance;
-        if (compound) {
-          IERC20 shareToken = IERC20(shareholderToken);
-          uint256 balBefore = shareToken.balanceOf(address(this));
-          address[] memory path = new address[](2);
-          path[0] = wrappedNative;
-          path[1] = shareholderToken;
-          router.swapExactETHForTokensSupportingFeeOnTransferTokens{
-            value: amount
-          }(0, path, address(this), block.timestamp);
-          uint256 amountReceived = shareToken.balanceOf(address(this)).sub(
-            balBefore
-          );
-          if (amountReceived > 0) {
-            uint256[] memory _empty = new uint256[](0);
-            _stake(shareholder, token, amountReceived, _empty, true);
-          }
-        } else {
-          (bool sent, ) = payable(shareholder).call{ value: amount }('');
-          require(sent, 'ETH was not successfully sent');
-        }
-        require(
-          address(this).balance >= balanceBefore - amount,
-          'only take proper amount from contract'
+      totalDistributed = totalDistributed.add(amount);
+      uint256 balanceBefore = address(this).balance;
+      if (compound) {
+        IERC20 shareToken = IERC20(shareholderToken);
+        uint256 balBefore = shareToken.balanceOf(address(this));
+        address[] memory path = new address[](2);
+        path[0] = wrappedNative;
+        path[1] = shareholderToken;
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{
+          value: amount
+        }(0, path, address(this), block.timestamp);
+        uint256 amountReceived = shareToken.balanceOf(address(this)).sub(
+          balBefore
         );
+        if (amountReceived > 0) {
+          uint256[] memory _empty = new uint256[](0);
+          _stake(shareholder, amountReceived, _empty, true);
+        }
       } else {
-        IERC20(token).transfer(shareholder, amount);
+        (bool sent, ) = payable(shareholder).call{ value: amount }('');
+        require(sent, 'ETH was not successfully sent');
       }
+      require(
+        address(this).balance >= balanceBefore - amount,
+        'only take proper amount from contract'
+      );
     }
   }
 
-  function claimReward(address token, bool compound) external {
-    distributeReward(token, msg.sender, compound);
+  function claimReward(bool compound) external {
+    distributeReward(msg.sender, compound);
   }
 
   function getAppreciatedShares(uint256 amount) public view returns (uint256) {
     IERC20 shareContract = IERC20(shareholderToken);
     uint256 totalSharesBalance = shareContract.balanceOf(address(this)).sub(
-      totalRewards[shareholderToken].sub(totalDistributed[shareholderToken])
+      totalRewards.sub(totalDistributed)
     );
     uint256 appreciationRatio18 = totalSharesBalance.mul(10**18).div(
       totalSharesDeposited
     );
     return amount.mul(appreciationRatio18).div(10**18);
-  }
-
-  function getRewardTokens() external view returns (address[] memory) {
-    return tokens;
   }
 
   // getElevatedSharesWithBooster:
@@ -399,20 +320,13 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
   }
 
   // returns the unpaid rewards
-  function getUnpaid(address token, address shareholder)
-    public
-    view
-    returns (uint256)
-  {
+  function getUnpaid(address shareholder) public view returns (uint256) {
     if (shares[shareholder].amount == 0) {
       return 0;
     }
 
-    uint256 earnedRewards = getCumulativeRewards(
-      token,
-      shares[shareholder].amount
-    );
-    uint256 rewardsExcluded = rewards[shareholder][token].totalExcluded;
+    uint256 earnedRewards = getCumulativeRewards(shares[shareholder].amount);
+    uint256 rewardsExcluded = rewards[shareholder].totalExcluded;
     if (earnedRewards <= rewardsExcluded) {
       return 0;
     }
@@ -420,12 +334,8 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
     return earnedRewards.sub(rewardsExcluded);
   }
 
-  function getCumulativeRewards(address token, uint256 share)
-    internal
-    view
-    returns (uint256)
-  {
-    return share.mul(rewardsPerShare[token]).div(ACC_FACTOR);
+  function getCumulativeRewards(uint256 share) internal view returns (uint256) {
+    return share.mul(rewardsPerShare).div(ACC_FACTOR);
   }
 
   function getBaseShares(address user) external view returns (uint256) {
@@ -478,16 +388,15 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
     minSecondsBeforeUnstake = _seconds;
   }
 
-  function stakeOverride(
-    address token,
-    address[] memory users,
-    Share[] memory shareholderInfo
-  ) external onlyOwner {
+  function stakeOverride(address[] memory users, Share[] memory shareholderInfo)
+    external
+    onlyOwner
+  {
     require(users.length == shareholderInfo.length, 'must be same length');
     uint256[] memory _empty = new uint256[](0);
     for (uint256 i = 0; i < users.length; i++) {
       shares[users[i]].nftBoostTokenIds = shareholderInfo[i].nftBoostTokenIds;
-      _stake(users[i], token, shareholderInfo[i].amountBase, _empty, true);
+      _stake(users[i], shareholderInfo[i].amountBase, _empty, true);
     }
   }
 

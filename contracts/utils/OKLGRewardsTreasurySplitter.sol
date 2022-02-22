@@ -48,7 +48,7 @@ contract OKLGRewardsTreasurySplitter is OKLGWithdrawable {
     if (rewardsPercent > 0) {
       rewardsContract.depositRewards{
         value: (msg.value * rewardsPercent) / 100
-      }(0x0000000000000000000000000000000000000000, 0);
+      }();
     }
   }
 }
