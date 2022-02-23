@@ -255,9 +255,7 @@ contract OKLGRewardDistributor is IOKLGRewardDistributor, OKLGWithdrawable {
 
   function getAppreciatedShares(uint256 amount) public view returns (uint256) {
     IERC20 shareContract = IERC20(shareholderToken);
-    uint256 totalSharesBalance = shareContract.balanceOf(address(this)).sub(
-      totalRewards.sub(totalDistributed)
-    );
+    uint256 totalSharesBalance = shareContract.balanceOf(address(this));
     uint256 appreciationRatio18 = totalSharesBalance.mul(10**18).div(
       totalSharesDeposited
     );
