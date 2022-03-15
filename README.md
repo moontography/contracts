@@ -19,3 +19,11 @@ $ CONTRACT_NAME=OKLG npx hardhat run --network rinkeby scripts/deploy.js
 ```sh
 $ npx hardhat verify CONTRACT_ADDRESS --network rinkeby
 ```
+
+## Flatten
+
+You generally should not need to do this simply to verify in today's compiler version (0.8.x), but should you ever want to:
+
+```sh
+$ npx hardhat flatten {contract file location} > output.sol
+```

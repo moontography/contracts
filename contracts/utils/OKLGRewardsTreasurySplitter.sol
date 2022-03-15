@@ -5,8 +5,8 @@ import '../interfaces/IOKLGRewardDistributor.sol';
 import '../OKLGWithdrawable.sol';
 
 contract OKLGRewardsTreasurySplitter is OKLGWithdrawable {
-  // BSC: 0x62eFd9bAa38A54CFBC0CDCC74B884e1821D91A88
-  // ETH: 0xB003f7431Dbb693Bb3C297B344Bbc40838877Cd1
+  // BSC: 0x6A67398C803aeFe4f7b6768d42EF76426bFe0F8d
+  // ETH: 0x8b61F51F639ADf0d883F6b6E30f2C822B238fC2E
   address public rewards;
   uint8 public rewardsPercent = 100;
   IOKLGRewardDistributor rewardsContract;
