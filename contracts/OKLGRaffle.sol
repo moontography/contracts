@@ -71,6 +71,7 @@ contract OKLGRaffle is OKLGProduct {
     _validateDates(_start, _end);
     _payForService(0);
 
+    uint256 _finalAmountOrTokenId = _rewardAmountOrTokenId;
     if (_isNft) {
       IERC721 _rewardToken = IERC721(_rewardTokenAddress);
       _rewardToken.transferFrom(
@@ -80,11 +81,15 @@ contract OKLGRaffle is OKLGProduct {
       );
     } else {
       IERC20 _rewardToken = IERC20(_rewardTokenAddress);
+      uint256 _beforeBalance = _rewardToken.balanceOf(address(this));
       _rewardToken.transferFrom(
         msg.sender,
         address(this),
         _rewardAmountOrTokenId
       );
+      _finalAmountOrTokenId =
+        _rewardToken.balanceOf(address(this)) -
+        _beforeBalance;
     }
 
     bytes32 _id = sha256(abi.encodePacked(msg.sender, block.number));
@@ -93,7 +98,7 @@ contract OKLGRaffle is OKLGProduct {
       owner: msg.sender,
       isNft: _isNft,
       rewardToken: _rewardTokenAddress,
-      rewardAmountOrTokenId: _rewardAmountOrTokenId,
+      rewardAmountOrTokenId: _finalAmountOrTokenId,
       start: _start,
       end: _end,
       entryToken: _entryToken,

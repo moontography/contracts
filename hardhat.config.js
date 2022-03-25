@@ -1,3 +1,5 @@
+// import 'metis-sourcecode-verify';
+// require('metis-sourcecode-verify')
 // import "@nomiclabs/hardhat-etherscan";
 require('@nomiclabs/hardhat-etherscan')
 // import "@nomiclabs/hardhat-truffle5";
@@ -26,6 +28,7 @@ const chainIds = {
   fuji: 43113,
   kcc: 321,
   polygon: 137,
+  metis: 1088,
   ganache: 1337,
   goerli: 5,
   hardhat: 31337,
@@ -74,6 +77,9 @@ const config = {
     // apiKey: process.env.FANTOM_API_KEY,
     // apiKey: process.env.POLYGONSCAN_API_KEY,
     // apiKey: process.env.SNOWTRACE_API_KEY,
+
+    // metis
+    // apiKey: 'api-key',
   },
   gasReporter: {
     currency: 'USD',
@@ -100,6 +106,7 @@ const config = {
     fuji: createConfig('fuji', 'https://api.avax-test.network/ext/bc/C/rpc'),
     kcc: createConfig('kcc', 'https://rpc-mainnet.kcc.network'),
     polygon: createConfig('polygon', 'https://polygon-rpc.com'),
+    metis: createConfig('metis', 'https://andromeda.metis.io/?owner=1088'),
     mainnet: createConfig('mainnet'),
     goerli: createConfig('goerli'),
     kovan: createConfig('kovan'),

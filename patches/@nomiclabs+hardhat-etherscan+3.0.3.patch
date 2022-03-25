@@ -1,0 +1,100 @@
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.d.ts.map b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.d.ts.map
+index f11b030..859efdc 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.d.ts.map
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.d.ts.map
+@@ -1 +1 @@
+-{"version":3,"file":"ChainConfig.d.ts","sourceRoot":"","sources":["../../src/ChainConfig.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,WAAW,EAAE,MAAM,SAAS,CAAC;AAGtC,eAAO,MAAM,WAAW,EAAE,WAqMzB,CAAC"}
+\ No newline at end of file
++{"version":3,"file":"ChainConfig.d.ts","sourceRoot":"","sources":["../../src/ChainConfig.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,WAAW,EAAE,MAAM,SAAS,CAAC;AAGtC,eAAO,MAAM,WAAW,EAAE,WAmNzB,CAAC"}
+\ No newline at end of file
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js
+index 007d740..e84717c 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js
+@@ -199,5 +199,19 @@ exports.chainConfig = {
+             browserURL: "https://testnet.aurorascan.dev",
+         },
+     },
++    metisStardust: {
++        chainId: 588,
++        urls: {
++            apiURL: "https://stardust-explorer.metis.io/api",
++            browserURL: "https://stardust-explorer.metis.io",
++        },
++    },
++    metisAndromeda: {
++        chainId: 1088,
++        urls: {
++            apiURL: "https://andromeda-explorer.metis.io/api",
++            browserURL: "https://andromeda-explorer.metis.io",
++        },
++    },
+ };
+ //# sourceMappingURL=ChainConfig.js.map
+\ No newline at end of file
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js.map b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js.map
+index c62e2e6..464ff64 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js.map
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/ChainConfig.js.map
+@@ -1 +1 @@
+-{"version":3,"file":"ChainConfig.js","sourceRoot":"","sources":["../../src/ChainConfig.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
++{"version":3,"file":"ChainConfig.js","sourceRoot":"","sources":["../../src/ChainConfig.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts
+index 0a9efc3..52fcd9c 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts
+@@ -1,4 +1,4 @@
+-declare type Chain = "mainnet" | "ropsten" | "rinkeby" | "goerli" | "kovan" | "bsc" | "bscTestnet" | "heco" | "hecoTestnet" | "opera" | "ftmTestnet" | "optimisticEthereum" | "optimisticKovan" | "polygon" | "polygonMumbai" | "arbitrumOne" | "arbitrumTestnet" | "avalanche" | "avalancheFujiTestnet" | "moonbeam" | "moonriver" | "moonbaseAlpha" | "harmony" | "harmonyTest" | "xdai" | "sokol" | "aurora" | "auroraTestnet";
++declare type Chain = "mainnet" | "ropsten" | "rinkeby" | "goerli" | "kovan" | "bsc" | "bscTestnet" | "heco" | "hecoTestnet" | "opera" | "ftmTestnet" | "optimisticEthereum" | "optimisticKovan" | "polygon" | "polygonMumbai" | "arbitrumOne" | "arbitrumTestnet" | "avalanche" | "avalancheFujiTestnet" | "moonbeam" | "moonriver" | "moonbaseAlpha" | "harmony" | "harmonyTest" | "xdai" | "sokol" | "aurora" | "auroraTestnet" | "metisAndromeda" | "metisStardust";
+ export declare type ChainConfig = {
+     [Network in Chain]: EtherscanChainConfig;
+ };
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts.map b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts.map
+index 604fe59..e75d4bc 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts.map
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/types.d.ts.map
+@@ -1 +1 @@
+-{"version":3,"file":"types.d.ts","sourceRoot":"","sources":["../../src/types.ts"],"names":[],"mappings":"AAAA,aAAK,KAAK,GACN,SAAS,GACT,SAAS,GACT,SAAS,GACT,QAAQ,GACR,OAAO,GAEP,KAAK,GACL,YAAY,GAEZ,MAAM,GACN,aAAa,GAEb,OAAO,GACP,YAAY,GAEZ,oBAAoB,GACpB,iBAAiB,GAEjB,SAAS,GACT,eAAe,GAEf,aAAa,GACb,iBAAiB,GAEjB,WAAW,GACX,sBAAsB,GAEtB,UAAU,GACV,WAAW,GACX,eAAe,GACf,SAAS,GACT,aAAa,GAEb,MAAM,GACN,OAAO,GAEP,QAAQ,GACR,eAAe,CAAC;AAEpB,oBAAY,WAAW,GAAG;KACvB,OAAO,IAAI,KAAK,GAAG,oBAAoB;CACzC,CAAC;AAEF,aAAK,gBAAgB,GAAG;KACrB,OAAO,IAAI,KAAK,CAAC,CAAC,EAAE,MAAM;CAC5B,CAAC;AAEF,MAAM,WAAW,eAAe;IAC9B,MAAM,CAAC,EAAE,MAAM,GAAG,gBAAgB,CAAC;CACpC;AAED,MAAM,WAAW,aAAa;IAC5B,MAAM,EAAE,MAAM,CAAC;IACf,UAAU,EAAE,MAAM,CAAC;CACpB;AAED,UAAU,oBAAoB;IAC5B,OAAO,EAAE,MAAM,CAAC;IAChB,IAAI,EAAE,aAAa,CAAC;CACrB;AAED,MAAM,WAAW,qBAAqB;IACpC,OAAO,EAAE,KAAK,CAAC;IACf,IAAI,EAAE,aAAa,CAAC;CACrB"}
+\ No newline at end of file
++{"version":3,"file":"types.d.ts","sourceRoot":"","sources":["../../src/types.ts"],"names":[],"mappings":"AAAA,aAAK,KAAK,GACN,SAAS,GACT,SAAS,GACT,SAAS,GACT,QAAQ,GACR,OAAO,GAEP,KAAK,GACL,YAAY,GAEZ,MAAM,GACN,aAAa,GAEb,OAAO,GACP,YAAY,GAEZ,oBAAoB,GACpB,iBAAiB,GAEjB,SAAS,GACT,eAAe,GAEf,aAAa,GACb,iBAAiB,GAEjB,WAAW,GACX,sBAAsB,GAEtB,UAAU,GACV,WAAW,GACX,eAAe,GACf,SAAS,GACT,aAAa,GAEb,MAAM,GACN,OAAO,GAEP,QAAQ,GACR,eAAe,GACf,gBAAgB,GAChB,eAAe,CAAC;AAEpB,oBAAY,WAAW,GAAG;KACvB,OAAO,IAAI,KAAK,GAAG,oBAAoB;CACzC,CAAC;AAEF,aAAK,gBAAgB,GAAG;KACrB,OAAO,IAAI,KAAK,CAAC,CAAC,EAAE,MAAM;CAC5B,CAAC;AAEF,MAAM,WAAW,eAAe;IAC9B,MAAM,CAAC,EAAE,MAAM,GAAG,gBAAgB,CAAC;CACpC;AAED,MAAM,WAAW,aAAa;IAC5B,MAAM,EAAE,MAAM,CAAC;IACf,UAAU,EAAE,MAAM,CAAC;CACpB;AAED,UAAU,oBAAoB;IAC5B,OAAO,EAAE,MAAM,CAAC;IAChB,IAAI,EAAE,aAAa,CAAC;CACrB;AAED,MAAM,WAAW,qBAAqB;IACpC,OAAO,EAAE,KAAK,CAAC;IACf,IAAI,EAAE,aAAa,CAAC;CACrB"}
+\ No newline at end of file
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/src/ChainConfig.ts b/node_modules/@nomiclabs/hardhat-etherscan/src/ChainConfig.ts
+index cd402d4..eb5ac02 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/src/ChainConfig.ts
++++ b/node_modules/@nomiclabs/hardhat-etherscan/src/ChainConfig.ts
+@@ -198,4 +198,18 @@ export const chainConfig: ChainConfig = {
+       browserURL: "https://testnet.aurorascan.dev",
+     },
+   },
++  metisStardust: {
++    chainId: 588,
++    urls: {
++      apiURL: "https://stardust-explorer.metis.io/api",
++      browserURL: "https://stardust-explorer.metis.io",
++    },
++  },
++  metisAndromeda: {
++    chainId: 1088,
++    urls: {
++      apiURL: "https://andromeda-explorer.metis.io/api",
++      browserURL: "https://andromeda-explorer.metis.io",
++    },
++  },
+ };
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/src/types.ts b/node_modules/@nomiclabs/hardhat-etherscan/src/types.ts
+index b88e8fa..616e0fc 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/src/types.ts
++++ b/node_modules/@nomiclabs/hardhat-etherscan/src/types.ts
+@@ -36,7 +36,9 @@ type Chain =
+   | "sokol"
+   // aurora
+   | "aurora"
+-  | "auroraTestnet";
++  | "auroraTestnet"
++  | "metisAndromeda"
++  | "metisStardust";
+ 
+ export type ChainConfig = {
+   [Network in Chain]: EtherscanChainConfig;
