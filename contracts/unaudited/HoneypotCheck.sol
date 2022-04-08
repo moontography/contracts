@@ -9,10 +9,10 @@ import '../OKLGWithdrawable.sol';
 contract HoneypotCheck is OKLGWithdrawable {
   IUniswapV2Router02 private router;
 
-  constructor() {
-    // PancakeSwap: 0x10ED43C718714eb63d5aA57B78B54704E256024E
-    // Uniswap V2: 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
-    router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+  // PancakeSwap: 0x10ED43C718714eb63d5aA57B78B54704E256024E
+  // Uniswap V2: 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+  constructor(address _router) {
+    router = IUniswapV2Router02(_router);
   }
 
   function buyThenSellNoSlippage(address token) external payable {
@@ -92,6 +92,14 @@ contract HoneypotCheck is OKLGWithdrawable {
       msg.sender,
       block.timestamp
     );
+  }
+
+  function getRouter() external view returns (address) {
+    return address(router);
+  }
+
+  function setRouter(address _router) external onlyOwner {
+    router = IUniswapV2Router02(_router);
   }
 
   receive() external payable {}
