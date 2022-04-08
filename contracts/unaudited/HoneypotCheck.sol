@@ -16,45 +16,33 @@ contract HoneypotCheck is OKLGWithdrawable {
   }
 
   function buyThenSellNoSlippage(address token) external payable {
-    require(msg.value > 0, 'Must send ETH to buy token');
-
-    // buy
-    address[] memory buyPath = new address[](2);
-    buyPath[0] = router.WETH();
-    buyPath[1] = token;
-    router.swapExactETHForTokensSupportingFeeOnTransferTokens{
-      value: msg.value
-    }(
-      0, // not accounting for slippage
-      buyPath,
-      address(this),
-      block.timestamp
-    );
-
-    // sell
-    IERC20 tokenContract = IERC20(token);
-    uint256 currentBalance = tokenContract.balanceOf(address(this));
-    address[] memory sellPath = new address[](2);
-    sellPath[0] = token;
-    sellPath[1] = router.WETH();
-    tokenContract.approve(address(router), currentBalance);
-
-    router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-      currentBalance,
-      0, // not accounting for slippage
-      sellPath,
-      address(this),
-      block.timestamp
-    );
+    _buyThenSell(token, 100, 100);
   }
 
-  // 0 <= slippage <= 100
-  function buyThenSellWithSlippage(address token, uint16 slippage)
+  function buyThenSellWithSingleSlippage(address token, uint16 slippage)
     external
     payable
   {
+    _buyThenSell(token, slippage, slippage);
+  }
+
+  function buyThenSellDualSlippage(
+    address token,
+    uint16 buySlippage,
+    uint16 sellSlippage
+  ) external payable {
+    _buyThenSell(token, buySlippage, sellSlippage);
+  }
+
+  // 0 <= [buySlippage,sellSlippage] <= 100
+  function _buyThenSell(
+    address token,
+    uint16 buySlippage,
+    uint16 sellSlippage
+  ) private {
     require(msg.value > 0, 'Must send ETH to buy token');
-    require(slippage <= 100, 'slippage cannot be more than 100%');
+    require(buySlippage <= 100, 'slippage cannot be more than 100%');
+    require(sellSlippage <= 100, 'slippage cannot be more than 100%');
 
     address pair = IUniswapV2Factory(router.factory()).getPair(
       router.WETH(),
@@ -76,7 +64,7 @@ contract HoneypotCheck is OKLGWithdrawable {
     router.swapExactETHForTokensSupportingFeeOnTransferTokens{
       value: msg.value
     }(
-      (amountTokensToReceiveNoSlip * (100 - slippage)) / 100,
+      (amountTokensToReceiveNoSlip * (100 - buySlippage)) / 100,
       buyPath,
       address(this),
       block.timestamp
@@ -84,7 +72,6 @@ contract HoneypotCheck is OKLGWithdrawable {
 
     // sell
     uint256 currentBalance = IERC20(token).balanceOf(address(this));
-
     (uint112 _r02, uint112 _r12, ) = IUniswapV2Pair(pair).getReserves();
     uint256 amountETHToReceiveNoSlip = 0;
     if (IUniswapV2Pair(pair).token0() == router.WETH()) {
@@ -100,9 +87,9 @@ contract HoneypotCheck is OKLGWithdrawable {
 
     router.swapExactTokensForETHSupportingFeeOnTransferTokens(
       currentBalance,
-      (amountETHToReceiveNoSlip * (100 - slippage)) / 100,
+      (amountETHToReceiveNoSlip * (100 - sellSlippage)) / 100,
       sellPath,
-      address(this),
+      msg.sender,
       block.timestamp
     );
   }
