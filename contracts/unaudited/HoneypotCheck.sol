@@ -19,7 +19,7 @@ contract HoneypotCheck is OKLGWithdrawable {
     _buyThenSell(token, 100, 100);
   }
 
-  function buyThenSellWithSingleSlippage(address token, uint16 slippage)
+  function buyThenSellSingleSlippage(address token, uint16 slippage)
     external
     payable
   {
