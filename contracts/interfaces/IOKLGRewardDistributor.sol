@@ -6,6 +6,8 @@ interface IOKLGRewardDistributor {
 
   function getShares(address wallet) external view returns (uint256);
 
+  function getBaseShares(address wallet) external view returns (uint256);
+
   function getBoostNfts(address wallet)
     external
     view
