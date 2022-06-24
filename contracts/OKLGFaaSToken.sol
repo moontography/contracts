@@ -18,7 +18,6 @@ contract OKLGFaaSToken is ERC20 {
   IERC20 private _stakedERC20;
   IERC721 private _stakedERC721;
   PoolInfo public pool;
-  address private constant _burner = 0x000000000000000000000000000000000000dEaD;
 
   struct PoolInfo {
     address creator; // address of contract creator
@@ -254,8 +253,8 @@ contract OKLGFaaSToken is ERC20 {
     uint256 _amountToRemoveFromStaked = pool.isStakedNft
       ? _userBalance
       : _amount;
-    transfer(
-      _burner,
+    _burn(
+      msg.sender,
       _amountToRemoveFromStaked > balanceOf(msg.sender)
         ? balanceOf(msg.sender)
         : _amountToRemoveFromStaked
@@ -293,9 +292,8 @@ contract OKLGFaaSToken is ERC20 {
       _amountToRemoveFromStaked > 0,
       'user can only unstake if they have tokens in the pool'
     );
-
-    transfer(
-      _burner,
+    _burn(
+      msg.sender,
       _amountToRemoveFromStaked > balanceOf(msg.sender)
         ? balanceOf(msg.sender)
         : _amountToRemoveFromStaked
