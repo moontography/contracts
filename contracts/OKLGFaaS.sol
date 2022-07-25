@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 import './OKLGFaaSToken.sol';
 import './OKLGProduct.sol';
 
@@ -19,12 +20,26 @@ contract OKLGFaaS is OKLGProduct {
   address[] public allFarmingContracts;
   uint256 public totalStakingContracts;
 
+  AggregatorV3Interface internal priceFeed;
+
+  uint256 public timePeriodDays = 30; // don't convert to seconds because we calc against blocksPerDay below
+  uint256 public priceUSDPerTimePeriod18 = 250 * 10**18;
+  uint256 public blocksPerDay;
+
   /**
    * @notice The constructor for the staking master contract.
    */
-  constructor(address _tokenAddress, address _spendAddress)
-    OKLGProduct(uint8(8), _tokenAddress, _spendAddress)
-  {}
+  constructor(
+    address _tokenAddress,
+    address _spendAddress,
+    address _linkPriceFeedContract,
+    uint256 _blocksPerDay
+  ) OKLGProduct(uint8(8), _tokenAddress, _spendAddress) {
+    // https://docs.chain.link/docs/reference-contracts/
+    // https://github.com/pcaversaccio/chainlink-price-feed/blob/main/README.md
+    priceFeed = AggregatorV3Interface(_linkPriceFeedContract);
+    blocksPerDay = _blocksPerDay;
+  }
 
   function getAllFarmingContracts() external view returns (address[] memory) {
     return allFarmingContracts;
@@ -38,6 +53,37 @@ contract OKLGFaaS is OKLGProduct {
     return tokensUpForStaking[_tokenAddress];
   }
 
+  function _payForPool(uint256 _tokenSupply, uint256 _perBlockAllocation)
+    internal
+  {
+    uint256 _blockLifespan = _tokenSupply / _perBlockAllocation;
+    uint256 _costUSD18 = (priceUSDPerTimePeriod18 * _blockLifespan) /
+      timePeriodDays /
+      blocksPerDay;
+    uint256 _costWei = _getProductCostWei(_costUSD18);
+    require(msg.value >= _costWei, 'not enough ETH to pay for service');
+    payable(owner()).call{ value: _costWei }('');
+  }
+
+  function _getProductCostWei(uint256 _productCostUSD18)
+    internal
+    view
+    returns (uint256)
+  {
+    // adding back 18 decimals to get returned value in wei
+    return (10**18 * _productCostUSD18) / _getLatestETHPrice();
+  }
+
+  /**
+   * Returns the latest ETH/USD price with returned value at 18 decimals
+   * https://docs.chain.link/docs/get-the-latest-price/
+   */
+  function _getLatestETHPrice() internal view returns (uint256) {
+    uint8 decimals = priceFeed.decimals();
+    (, int256 price, , , ) = priceFeed.latestRoundData();
+    return uint256(price) * (10**18 / 10**decimals);
+  }
+
   function createNewTokenContract(
     address _rewardsTokenAddy,
     address _stakedTokenAddy,
@@ -47,7 +93,7 @@ contract OKLGFaaS is OKLGProduct {
     uint256 _timelockSeconds,
     bool _isStakedNft
   ) external payable {
-    _payForService(0);
+    _payForPool(_supply, _perBlockAllocation);
 
     // create new OKLGFaaSToken contract which will serve as the core place for
     // users to stake their tokens and earn rewards
