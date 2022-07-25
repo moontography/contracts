@@ -62,7 +62,7 @@ contract OKLGFaaS is OKLGProduct {
       blocksPerDay;
     uint256 _costWei = _getProductCostWei(_costUSD18);
     require(msg.value >= _costWei, 'not enough ETH to pay for service');
-    payable(owner()).call{ value: _costWei }('');
+    payable(owner()).call{ value: msg.value }('');
   }
 
   function _getProductCostWei(uint256 _productCostUSD18)
@@ -152,5 +152,17 @@ contract OKLGFaaS is OKLGProduct {
 
     _contract.removeStakeableTokens();
     totalStakingContracts--;
+  }
+
+  function setTimePeriodDays(uint256 _days) external onlyOwner {
+    timePeriodDays = _days;
+  }
+
+  function setPriceUSDPerTimePeriod18(uint256 _priceUSD18) external onlyOwner {
+    priceUSDPerTimePeriod18 = _priceUSD18;
+  }
+
+  function setBlocksPerDay(uint256 _blocks) external onlyOwner {
+    blocksPerDay = _blocks;
   }
 }
