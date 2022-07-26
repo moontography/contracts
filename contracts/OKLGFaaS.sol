@@ -23,7 +23,7 @@ contract OKLGFaaS is OKLGProduct {
   AggregatorV3Interface internal priceFeed;
 
   uint256 public timePeriodDays = 30; // don't convert to seconds because we calc against blocksPerDay below
-  uint256 public priceUSDPerTimePeriod18 = 250 * 10**18;
+  uint256 public priceUSDPerTimePeriod18 = 300 * 10**18;
   uint256 public blocksPerDay;
 
   /**
@@ -60,13 +60,13 @@ contract OKLGFaaS is OKLGProduct {
     uint256 _costUSD18 = (priceUSDPerTimePeriod18 * _blockLifespan) /
       timePeriodDays /
       blocksPerDay;
-    uint256 _costWei = _getProductCostWei(_costUSD18);
+    uint256 _costWei = getProductCostWei(_costUSD18);
     require(msg.value >= _costWei, 'not enough ETH to pay for service');
     payable(owner()).call{ value: msg.value }('');
   }
 
-  function _getProductCostWei(uint256 _productCostUSD18)
-    internal
+  function getProductCostWei(uint256 _productCostUSD18)
+    public
     view
     returns (uint256)
   {
