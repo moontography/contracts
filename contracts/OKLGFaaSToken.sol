@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import './interfaces/IOKLGFaaSTimePricing.sol';
 
 /**
  * @title OKLGFaaSToken (sOKLG)
@@ -17,13 +18,14 @@ contract OKLGFaaSToken is ERC20 {
   IERC20 private _rewardsToken;
   IERC20 private _stakedERC20;
   IERC721 private _stakedERC721;
+  IOKLGFaaSTimePricing private _faasPricing;
   PoolInfo public pool;
 
   struct PoolInfo {
     address creator; // address of contract creator
     address tokenOwner; // address of original rewards token owner
-    uint256 origTotSupply; // supply of rewards tokens put up to be rewarded by original owner
-    uint256 curRewardsSupply; // current supply of rewards
+    uint256 poolTotalSupply; // supply of rewards tokens put up to be rewarded by original owner
+    uint256 poolRemainingSupply; // current supply of rewards
     uint256 totalTokensStaked; // current amount of tokens staked
     uint256 creationBlock; // block this contract was created
     uint256 perBlockNum; // amount of rewards tokens rewarded per block
@@ -69,6 +71,7 @@ contract OKLGFaaSToken is ERC20 {
    * @param _lockedUntilDate Unix timestamp that the staked tokens will be locked. 0 means locked forever until all tokens are staked
    * @param _stakeTimeLockSec number of seconds a user is required to stake, or 0 if none
    * @param _isStakedNft is this an NFT staking pool
+   * @param _pricingContract is contract we use to pay to create and update supply for FaaS pools
    */
   constructor(
     string memory _name,
@@ -80,7 +83,8 @@ contract OKLGFaaSToken is ERC20 {
     uint256 _perBlockAmount,
     uint256 _lockedUntilDate,
     uint256 _stakeTimeLockSec,
-    bool _isStakedNft
+    bool _isStakedNft,
+    address _pricingContract
   ) ERC20(_name, _symbol) {
     require(
       _perBlockAmount > uint256(0) && _perBlockAmount <= uint256(_rewardSupply),
@@ -103,8 +107,8 @@ contract OKLGFaaSToken is ERC20 {
     pool = PoolInfo({
       creator: msg.sender,
       tokenOwner: _originalTokenOwner,
-      origTotSupply: _rewardSupply,
-      curRewardsSupply: _rewardSupply,
+      poolTotalSupply: _rewardSupply,
+      poolRemainingSupply: _rewardSupply,
       totalTokensStaked: 0,
       creationBlock: 0,
       perBlockNum: _perBlockAmount,
@@ -114,6 +118,8 @@ contract OKLGFaaSToken is ERC20 {
       stakeTimeLockSec: _stakeTimeLockSec,
       isStakedNft: _isStakedNft
     });
+
+    _faasPricing = IOKLGFaaSTimePricing(_pricingContract);
   }
 
   // SHOULD ONLY BE CALLED AT CONTRACT CREATION and allows changing
@@ -124,8 +130,23 @@ contract OKLGFaaSToken is ERC20 {
       msg.sender == pool.creator,
       'only contract creator can update the supply'
     );
-    pool.origTotSupply = _newSupply;
-    pool.curRewardsSupply = _newSupply;
+    pool.poolTotalSupply = _newSupply;
+    pool.poolRemainingSupply = _newSupply;
+  }
+
+  function addToSupply(uint256 _additionalSupply) external payable {
+    require(_additionalSupply > 0, 'must add tokens to the rewards supply');
+    _faasPricing.payForPool{ value: msg.value }(
+      _additionalSupply,
+      pool.perBlockNum
+    );
+
+    uint256 _balBefore = _rewardsToken.balanceOf(address(this));
+    _rewardsToken.transferFrom(msg.sender, address(this), _additionalSupply);
+    _additionalSupply = _rewardsToken.balanceOf(address(this)) - _balBefore;
+
+    pool.poolTotalSupply += _additionalSupply;
+    pool.poolRemainingSupply += _additionalSupply;
   }
 
   function stakedTokenAddress() external view returns (address) {
@@ -149,8 +170,8 @@ contract OKLGFaaSToken is ERC20 {
       msg.sender == pool.creator || msg.sender == pool.tokenOwner,
       'caller must be the contract creator or owner to remove stakable tokens'
     );
-    _rewardsToken.transfer(pool.tokenOwner, pool.curRewardsSupply);
-    pool.curRewardsSupply = 0;
+    _rewardsToken.transfer(pool.tokenOwner, pool.poolRemainingSupply);
+    pool.poolRemainingSupply = 0;
     contractIsRemoved = true;
   }
 
@@ -345,7 +366,7 @@ contract OKLGFaaSToken is ERC20 {
     uint256 _blockToAdd = pool.creationBlock == 0
       ? block.number
       : pool.creationBlock;
-    return pool.origTotSupply.div(pool.perBlockNum).add(_blockToAdd);
+    return pool.poolTotalSupply.div(pool.perBlockNum).add(_blockToAdd);
   }
 
   function calcHarvestTot(address _userAddy) public view returns (uint256) {
@@ -410,7 +431,7 @@ contract OKLGFaaSToken is ERC20 {
         _rewardsToken.transfer(_userAddy, _num2Trans),
         'unable to send user their harvested tokens'
       );
-      pool.curRewardsSupply = pool.curRewardsSupply.sub(_num2Trans);
+      pool.poolRemainingSupply = pool.poolRemainingSupply.sub(_num2Trans);
     }
     _staker.rewardDebt = _staker.amountStaked.mul(pool.accERC20PerShare).div(
       1e36
