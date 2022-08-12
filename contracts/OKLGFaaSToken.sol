@@ -56,6 +56,12 @@ contract OKLGFaaSToken is ERC20 {
   // they are staking.
   mapping(address => StakerInfo) public stakers;
 
+  // If we need to keep track of owed rewards for a user but not
+  // send them yet (i.e. when adding tokens for a stake during lockup)
+  // this keeps track of that, and will add said rewards back to
+  // the rewards pool on emergency unstake
+  mapping(address => uint256) public rewardVault;
+
   event Deposit(address indexed user, uint256 amount);
   event Withdraw(address indexed user, uint256 amount);
 
@@ -175,28 +181,21 @@ contract OKLGFaaSToken is ERC20 {
     contractIsRemoved = true;
   }
 
-  // function updateTimestamp(uint256 _newTime) external {
-  //   require(
-  //     msg.sender == tokenOwner,
-  //     'updateTimestamp user must be original token owner'
-  //   );
-  //   require(
-  //     _newTime > lockedUntilDate || _newTime == 0,
-  //     'you cannot change timestamp if it is before the locked time or was set to be locked forever'
-  //   );
-  //   lockedUntilDate = _newTime;
-  // }
-
   function stakeTokens(uint256 _amount, uint256[] memory _tokenIds) public {
     require(
       getLastStakableBlock() > block.number,
       'this farm is expired and no more stakers can be added'
     );
 
+    StakerInfo storage _staker = stakers[msg.sender];
     _updatePool();
 
     if (balanceOf(msg.sender) > 0) {
-      _harvestTokens(msg.sender);
+      _harvestTokens(
+        msg.sender,
+        block.timestamp >=
+          _staker.timeOriginallyStaked.add(pool.stakeTimeLockSec)
+      );
     }
 
     uint256 _finalAmountTransferred;
@@ -228,7 +227,6 @@ contract OKLGFaaSToken is ERC20 {
       pool.lastRewardBlock = block.number;
     }
     _mint(msg.sender, _finalAmountTransferred);
-    StakerInfo storage _staker = stakers[msg.sender];
     _staker.amountStaked = _staker.amountStaked.add(_finalAmountTransferred);
     _staker.blockOriginallyStaked = block.number;
     _staker.timeOriginallyStaked = block.timestamp;
@@ -268,7 +266,9 @@ contract OKLGFaaSToken is ERC20 {
     _updatePool();
 
     if (_shouldHarvest) {
-      _harvestTokens(msg.sender);
+      _harvestTokens(msg.sender, true);
+    } else {
+      _removeFromVaultBackToPool(msg.sender);
     }
 
     uint256 _amountToRemoveFromStaked = pool.isStakedNft
@@ -308,6 +308,7 @@ contract OKLGFaaSToken is ERC20 {
 
   function emergencyUnstake() external {
     StakerInfo memory _staker = stakers[msg.sender];
+    _removeFromVaultBackToPool(msg.sender);
     uint256 _amountToRemoveFromStaked = _staker.amountStaked;
     require(
       _amountToRemoveFromStaked > 0,
@@ -348,7 +349,11 @@ contract OKLGFaaSToken is ERC20 {
       'can only harvest tokens for someone else if this was the contract creator'
     );
     _updatePool();
-    uint256 _tokensToUser = _harvestTokens(_userAddy);
+    StakerInfo memory _staker = stakers[_userAddy];
+    uint256 _tokensToUser = _harvestTokens(
+      _userAddy,
+      block.timestamp >= _staker.timeOriginallyStaked.add(pool.stakeTimeLockSec)
+    );
 
     if (
       _autoCompound &&
@@ -377,7 +382,7 @@ contract OKLGFaaSToken is ERC20 {
       _staker.blockOriginallyStaked == 0 ||
       pool.totalTokensStaked == 0
     ) {
-      return uint256(0);
+      return 0;
     }
 
     uint256 _accERC20PerShare = pool.accERC20PerShare;
@@ -421,23 +426,42 @@ contract OKLGFaaSToken is ERC20 {
     pool.lastRewardBlock = _lastBlock;
   }
 
-  function _harvestTokens(address _userAddy) private returns (uint256) {
+  function _harvestTokens(address _userAddy, bool _sendRewards)
+    private
+    returns (uint256)
+  {
     StakerInfo storage _staker = stakers[_userAddy];
     require(_staker.blockOriginallyStaked > 0, 'user must have tokens staked');
 
     uint256 _num2Trans = calcHarvestTot(_userAddy);
     if (_num2Trans > 0) {
-      require(
-        _rewardsToken.transfer(_userAddy, _num2Trans),
-        'unable to send user their harvested tokens'
-      );
-      pool.poolRemainingSupply = pool.poolRemainingSupply.sub(_num2Trans);
+      if (_sendRewards) {
+        _sendRewardsToUser(_userAddy, _num2Trans);
+      } else {
+        rewardVault[_userAddy] += _num2Trans;
+      }
     }
     _staker.rewardDebt = _staker.amountStaked.mul(pool.accERC20PerShare).div(
       1e36
     );
     _staker.blockLastHarvested = block.number;
     return _num2Trans;
+  }
+
+  function _sendRewardsToUser(address _user, uint256 _amount) internal {
+    uint256 _totalToSend = _amount + rewardVault[_user];
+    rewardVault[_user] = 0;
+    require(
+      _rewardsToken.transfer(_user, _totalToSend),
+      'unable to send user their harvested tokens'
+    );
+    pool.poolRemainingSupply = pool.poolRemainingSupply.sub(_totalToSend);
+  }
+
+  function _removeFromVaultBackToPool(address _user) internal {
+    uint256 _amountInVault = rewardVault[_user];
+    rewardVault[_user] = 0;
+    pool.poolRemainingSupply = pool.poolRemainingSupply.add(_amountInVault);
   }
 
   // update the amount currently staked after a user harvests
