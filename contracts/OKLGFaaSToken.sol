@@ -141,7 +141,7 @@ contract OKLGFaaSToken is ERC20 {
   }
 
   function addToSupply(uint256 _additionalSupply) external payable {
-    require(_additionalSupply > 0, 'must add tokens to the rewards supply');
+    require(_additionalSupply >= pool.perBlockNum, 'must add 1 block at least');
     _faasPricing.payForPool{ value: msg.value }(
       _additionalSupply,
       pool.perBlockNum
